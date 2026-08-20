@@ -1,0 +1,8 @@
+model:
+  name: kiara-base
+  family: decoder_only_transformer
+  tokenizer: bpe
+  attention: grouped_query_attention
+  position_encoding: rope
+  normalization: rmsnorm
+  activation: swiglu

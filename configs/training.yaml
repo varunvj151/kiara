@@ -1,0 +1,8 @@
+training:
+  seed: 1337
+  dtype: bfloat16
+  checkpoint_interval: 1000
+  eval_interval: 500
+  warmup_steps: 200
+  max_steps: 100000
+  log_interval: 50

@@ -1,0 +1,7 @@
+inherits: base.yaml
+model:
+  hidden_size: 512
+  layers: 12
+  heads: 8
+training:
+  batch_size: 4
