@@ -89,7 +89,7 @@ def get_library_versions() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def _write_corpus_to_file(texts: list[str], path: Path) -> None:
-    """Write corpus texts as newline-separated strings to a file."""
+    """Write corpus texts as newline-separated strings to a file (UTF-8)."""
     path.write_text("\n".join(texts), encoding="utf-8")
 
 
@@ -114,8 +114,6 @@ def train_byte_bpe(
     from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 
     save_dir.mkdir(parents=True, exist_ok=True)
-    corpus_file = save_dir / "corpus.txt"
-    _write_corpus_to_file(texts, corpus_file)
 
     tokenizer = Tokenizer(BPE(unk_token=None))
     tokenizer.pre_tokenizer = ByteLevel(add_prefix_space=False)
@@ -129,7 +127,7 @@ def train_byte_bpe(
     )
 
     t0 = time.perf_counter()
-    tokenizer.train(files=[str(corpus_file)], trainer=trainer)
+    tokenizer.train_from_iterator(texts, trainer=trainer)
     train_time_s = time.perf_counter() - t0
 
     actual_vocab_size = tokenizer.get_vocab_size()
@@ -169,8 +167,6 @@ def train_bpe(
     from tokenizers.trainers import BpeTrainer
 
     save_dir.mkdir(parents=True, exist_ok=True)
-    corpus_file = save_dir / "corpus.txt"
-    _write_corpus_to_file(texts, corpus_file)
 
     tokenizer = Tokenizer(BPE(unk_token=UNK_TOKEN))
     tokenizer.pre_tokenizer = Whitespace()
@@ -183,7 +179,7 @@ def train_bpe(
     )
 
     t0 = time.perf_counter()
-    tokenizer.train(files=[str(corpus_file)], trainer=trainer)
+    tokenizer.train_from_iterator(texts, trainer=trainer)
     train_time_s = time.perf_counter() - t0
 
     actual_vocab_size = tokenizer.get_vocab_size()
@@ -227,8 +223,6 @@ def train_unigram(
     from tokenizers.decoders import Metaspace as MetaspaceDecoder
 
     save_dir.mkdir(parents=True, exist_ok=True)
-    corpus_file = save_dir / "corpus.txt"
-    _write_corpus_to_file(texts, corpus_file)
 
     tokenizer = Tokenizer(Unigram())
     tokenizer.pre_tokenizer = Metaspace(replacement="▁", prepend_scheme="always")
@@ -245,7 +239,7 @@ def train_unigram(
     )
 
     t0 = time.perf_counter()
-    tokenizer.train(files=[str(corpus_file)], trainer=trainer)
+    tokenizer.train_from_iterator(texts, trainer=trainer)
     train_time_s = time.perf_counter() - t0
 
     actual_vocab_size = tokenizer.get_vocab_size()
@@ -306,12 +300,12 @@ def train_tokenizer(
     meta_path = save_dir / "meta.json"
     if meta_path.exists() and not force_retrain:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        print(f"  [cache] {algo} vocab={vocab_size} → actual={meta['vocab_size_actual']} (loaded from cache)")
+        print(f"  [cache] {algo} vocab={vocab_size} -> actual={meta['vocab_size_actual']} (loaded from cache)")
         return meta
 
     print(f"  [train] {algo} vocab={vocab_size} ...")
     meta = TRAINER_MAP[algo](texts=texts, vocab_size=vocab_size, save_dir=save_dir, seed=seed)
-    print(f"          → actual vocab={meta['vocab_size_actual']} in {meta['train_time_s']:.2f}s")
+    print(f"          -> actual vocab={meta['vocab_size_actual']} in {meta['train_time_s']:.2f}s")
     return meta
 
 
@@ -360,5 +354,5 @@ if __name__ == "__main__":
         test = "Hello, Kiara!"
         ids = encode_fn(test)
         decoded = decode_fn(ids)
-        ok = "✓" if decoded == test else "✗"
+        ok = "PASS" if decoded == test else "FAIL"
         print(f"  {algo:10s}  ids={ids[:5]}...  round-trip={ok}")
