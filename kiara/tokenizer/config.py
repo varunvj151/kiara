@@ -67,7 +67,13 @@ class TokenizerConfig:
             "trim_offsets",
             "special_tokens",
         }
-        filtered = {k: v for k, v in data.items() if k in valid_keys}
+        filtered: dict[str, Any] = {}
+        for k, v in data.items():
+            if k in valid_keys:
+                if isinstance(v, dict) and "content" in v:
+                    filtered[k] = v["content"]
+                else:
+                    filtered[k] = v
         return cls(**filtered)
 
     @classmethod

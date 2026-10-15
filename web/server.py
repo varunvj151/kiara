@@ -80,7 +80,10 @@ def load_kiara_model(ckpt_path: Path):
     global CURRENT_MODEL, CURRENT_TOKENIZER, CURRENT_CONFIG, CURRENT_CKPT_PATH
     print(f"\n[Kiara Server] Loading checkpoint: {ckpt_path} on {DEVICE}...")
 
-    CURRENT_TOKENIZER = KiaraTokenizer.load()
+    if (ckpt_path.parent / "tokenizer.json").exists():
+        CURRENT_TOKENIZER = KiaraTokenizer.load(ckpt_path.parent)
+    else:
+        CURRENT_TOKENIZER = KiaraTokenizer.load()
 
     # Read checkpoint metadata to detect architecture
     raw = torch.load(ckpt_path, map_location="cpu")

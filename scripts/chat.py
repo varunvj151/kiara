@@ -54,7 +54,10 @@ SMALL_CONFIG = dict(
 
 
 def load_model_and_tokenizer(ckpt_path: Path, device: torch.device):
-    tokenizer = KiaraTokenizer.load()
+    if (ckpt_path.parent / "tokenizer.json").exists():
+        tokenizer = KiaraTokenizer.load(ckpt_path.parent)
+    else:
+        tokenizer = KiaraTokenizer.load()
 
     # Detect architecture based on config.json, checkpoint dict, or preset
     config = None

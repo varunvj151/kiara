@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import random
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -153,7 +154,11 @@ def run_instruction_finetuning(
     scaler = torch.cuda.amp.GradScaler(enabled=use_cuda)
     print(f"  Device: {device} | Mixed Precision (AMP): {use_cuda}\n")
 
-    tokenizer = KiaraTokenizer.load()
+    if (base_checkpoint.parent / "tokenizer.json").exists():
+        tokenizer = KiaraTokenizer.load(base_checkpoint.parent)
+        print(f"  Loaded model-specific tokenizer from: {base_checkpoint.parent} (vocab_size={len(tokenizer):,})")
+    else:
+        tokenizer = KiaraTokenizer.load()
 
     # Load base checkpoint and extract embedded architecture config
     print(f"Inspecting base checkpoint: {base_checkpoint}...")
@@ -194,6 +199,12 @@ def run_instruction_finetuning(
     del ckpt_raw
     model.to(device)
     config.save_pretrained(target_output_dir)
+
+    # Persist tokenizer artifacts with checkpoint
+    if (base_checkpoint.parent / "tokenizer.json").exists():
+        shutil.copy2(base_checkpoint.parent / "tokenizer.json", target_output_dir / "tokenizer.json")
+    if (base_checkpoint.parent / "tokenizer_config.json").exists():
+        shutil.copy2(base_checkpoint.parent / "tokenizer_config.json", target_output_dir / "tokenizer_config.json")
 
     # Load SFT datasets
     train_file = DATA_DIR / "train_sft.jsonl"
