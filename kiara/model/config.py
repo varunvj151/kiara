@@ -156,3 +156,45 @@ class KiaraConfig:
             raise FileNotFoundError(f"Config file not found at: {config_file}")
         data = json.loads(config_file.read_text(encoding="utf-8"))
         return cls.from_dict(data)
+
+    @classmethod
+    def tiny(cls) -> KiaraConfig:
+        """Kiara-Tiny (40.9M parameters) - Fast edge/CPU model."""
+        return cls(
+            vocab_size=32768,
+            hidden_size=512,
+            intermediate_size=1536,
+            num_hidden_layers=8,
+            num_attention_heads=8,
+            num_key_value_heads=2,
+            max_position_embeddings=512,
+            tie_word_embeddings=True,
+        )
+
+    @classmethod
+    def small(cls) -> KiaraConfig:
+        """Kiara-Small (~100M-135M parameters) - High-efficiency reasoning model (SmolLM-135M class)."""
+        return cls(
+            vocab_size=32768,
+            hidden_size=768,
+            intermediate_size=2048,
+            num_hidden_layers=12,
+            num_attention_heads=12,
+            num_key_value_heads=3,
+            max_position_embeddings=1024,
+            tie_word_embeddings=True,
+        )
+
+    @classmethod
+    def medium(cls) -> KiaraConfig:
+        """Kiara-Medium (~360M parameters) - Advanced reasoning, coding & dialogue model (SmolLM-360M class)."""
+        return cls(
+            vocab_size=32768,
+            hidden_size=1024,
+            intermediate_size=3072,
+            num_hidden_layers=16,
+            num_attention_heads=16,
+            num_key_value_heads=4,
+            max_position_embeddings=1024,
+            tie_word_embeddings=True,
+        )

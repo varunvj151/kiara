@@ -112,30 +112,29 @@ class GroupedQueryAttention(nn.Module):
         k_rep = repeat_kv(k, self.num_kv_groups)
         v_rep = repeat_kv(v, self.num_kv_groups)
 
-        # 6. Compute Scaled Dot-Product Attention Scores
-        # [batch, num_heads, seq_len, head_dim] @ [batch, num_heads, head_dim, kv_seq_len] -> [batch, num_heads, seq_len, kv_seq_len]
-        attn_weights = torch.matmul(q, k_rep.transpose(-2, -1)) * self.scale
-
-        # 7. Apply Causal Mask if computing full attention over sequence
-        if seq_len > 1:
-            # Lower triangular causal mask: allow attending only to past and present tokens
-            causal_mask = torch.triu(
-                torch.full((seq_len, kv_seq_len), float("-inf"), device=hidden_states.device, dtype=attn_weights.dtype),
-                diagonal=1 + (kv_seq_len - seq_len),
+        # 6. High-Performance FlashAttention / SDPA Dispatch
+        if hasattr(F, "scaled_dot_product_attention") and attention_mask is None:
+            is_causal = (seq_len > 1 and kv_seq_len == seq_len)
+            dropout_p = self.config.attention_dropout if self.training else 0.0
+            attn_output = F.scaled_dot_product_attention(
+                q, k_rep, v_rep,
+                is_causal=is_causal,
+                dropout_p=dropout_p,
             )
-            attn_weights = attn_weights + causal_mask.unsqueeze(0).unsqueeze(0)
-
-        # 8. Apply External Attention Mask (e.g. from padding tokens)
-        if attention_mask is not None:
-            attn_weights = attn_weights + attention_mask
-
-        # 9. Softmax & Dropout
-        attn_probs = F.softmax(attn_weights, dim=-1, dtype=torch.float32).to(hidden_states.dtype)
-        attn_probs = self.dropout(attn_probs)
-
-        # 10. Compute Context Vector
-        # [batch, num_heads, seq_len, kv_seq_len] @ [batch, num_heads, kv_seq_len, head_dim] -> [batch, num_heads, seq_len, head_dim]
-        attn_output = torch.matmul(attn_probs, v_rep)
+        else:
+            # Fallback to explicit computation when custom masks are supplied
+            attn_weights = torch.matmul(q, k_rep.transpose(-2, -1)) * self.scale
+            if seq_len > 1:
+                causal_mask = torch.triu(
+                    torch.full((seq_len, kv_seq_len), float("-inf"), device=hidden_states.device, dtype=attn_weights.dtype),
+                    diagonal=1 + (kv_seq_len - seq_len),
+                )
+                attn_weights = attn_weights + causal_mask.unsqueeze(0).unsqueeze(0)
+            if attention_mask is not None:
+                attn_weights = attn_weights + attention_mask
+            attn_probs = F.softmax(attn_weights, dim=-1, dtype=torch.float32).to(hidden_states.dtype)
+            attn_probs = self.dropout(attn_probs)
+            attn_output = torch.matmul(attn_probs, v_rep)
 
         # Reshape back to [batch, seq_len, hidden_size]
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
