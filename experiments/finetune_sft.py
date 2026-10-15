@@ -154,12 +154,21 @@ def run_instruction_finetuning(
 
     tokenizer = KiaraTokenizer.load()
 
-    # Load base config
-    config_file = base_checkpoint.parent / "config.json"
-    if config_file.exists():
+    # Load base checkpoint and extract embedded architecture config
+    print(f"Inspecting base checkpoint: {base_checkpoint}...")
+    ckpt_raw = torch.load(base_checkpoint, map_location="cpu")
+    if "config" in ckpt_raw and isinstance(ckpt_raw["config"], dict):
+        config = KiaraConfig(**ckpt_raw["config"])
+        print(f"  Detected architecture from checkpoint: d_model={config.hidden_size}, layers={config.num_hidden_layers}, heads={config.num_attention_heads}Q/{config.num_key_value_heads}KV")
+    elif (base_checkpoint.parent / "config.json").exists():
         config = KiaraConfig.from_pretrained(base_checkpoint.parent)
+    elif "26D1" in str(base_checkpoint) or "small" in str(base_checkpoint).lower():
+        config = KiaraConfig(
+            vocab_size=32768, hidden_size=768, intermediate_size=2048,
+            num_hidden_layers=12, num_attention_heads=12, num_key_value_heads=3,
+            max_position_embeddings=512, tie_word_embeddings=True
+        )
     else:
-        # Fallback to tiny config with 256/512 max pos
         config = KiaraConfig(
             vocab_size=32768, hidden_size=512, intermediate_size=1536,
             num_hidden_layers=8, num_attention_heads=8, num_key_value_heads=2,
@@ -170,8 +179,8 @@ def run_instruction_finetuning(
         config.max_position_embeddings = seq_len
 
     model = KiaraForCausalLM(config)
-    print(f"Loading base weights from {base_checkpoint}...")
-    load_checkpoint(base_checkpoint, model=model)
+    model.load_state_dict(ckpt_raw["model_state_dict"])
+    del ckpt_raw
     model.to(device)
     config.save_pretrained(OUTPUT_DIR)
 
@@ -287,12 +296,26 @@ if __name__ == "__main__":
     parser.add_argument("--seq-len", type=int, default=256, help="Sequence length")
     args = parser.parse_args()
 
-    ckpt_p = Path(args.base_ckpt)
-    if not ckpt_p.exists():
-        # Fallback to stage_26C if 26D2 not locally available
-        fallback = REPO_ROOT / "checkpoints" / "stage_26C" / "checkpoint_final.pt"
-        if fallback.exists():
-            ckpt_p = fallback
+    candidate_paths = [
+        Path(args.base_ckpt),
+        Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D1/checkpoint_final.pt"),
+        Path("/content/drive/MyDrive/kiara_checkpoints/checkpoint_final.pt"),
+        Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D2_256/checkpoint_final.pt"),
+        REPO_ROOT / "checkpoints" / "stage_26D2_256" / "checkpoint_final.pt",
+        REPO_ROOT / "checkpoints" / "stage_26D1" / "checkpoint_final.pt",
+        REPO_ROOT / "checkpoints" / "stage_26C" / "checkpoint_final.pt",
+    ]
+    ckpt_p = None
+    for p in candidate_paths:
+        if p.exists() and p.is_file():
+            ckpt_p = p
+            break
+
+    if ckpt_p is None:
+        print("\n❌ Error: Could not locate a base checkpoint. Checked:")
+        for p in candidate_paths:
+            print(f"   - {p}")
+        sys.exit(1)
 
     run_instruction_finetuning(
         base_checkpoint=ckpt_p,
