@@ -1,0 +1,9 @@
+{
+  "algo": "byte_bpe",
+  "vocab_size_requested": 50000,
+  "vocab_size_actual": 50000,
+  "tokenizer_path": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\experiments\\tokenizer_benchmark\\data\\models\\byte_bpe_50000\\tokenizer.json",
+  "train_time_s": 6.401,
+  "library": "tokenizers",
+  "unk_possible": false
+}

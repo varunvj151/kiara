@@ -1,0 +1,114 @@
+[
+  {
+    "domain": "TinyStories (Narrative)",
+    "ppl_26a": 3.98,
+    "ppl_26c": 4.77,
+    "delta": 0.79,
+    "fold_improvement": 0.83
+  },
+  {
+    "domain": "WikiText-2 (Formal Prose)",
+    "ppl_26a": 22.98,
+    "ppl_26c": 30.53,
+    "delta": 7.55,
+    "fold_improvement": 0.75
+  },
+  {
+    "domain": "Technical ML Prose",
+    "ppl_26a": 277.94,
+    "ppl_26c": 105.86,
+    "delta": -172.08,
+    "fold_improvement": 2.63
+  },
+  {
+    "domain": "Source Code (Py/JS/C++)",
+    "ppl_26a": 11950.46,
+    "ppl_26c": 663.28,
+    "delta": -11287.18,
+    "fold_improvement": 18.02
+  },
+  {
+    "domain": "Structured / JSON / Tables",
+    "ppl_26a": 4566.03,
+    "ppl_26c": 393.01,
+    "delta": -4173.02,
+    "fold_improvement": 11.62
+  },
+  {
+    "domain": "Mathematics / LaTeX",
+    "ppl_26a": 43650.02,
+    "ppl_26c": 3925.43,
+    "delta": -39724.59,
+    "fold_improvement": 11.12
+  },
+  {
+    "domain": "Rare Words / Vocabulary",
+    "ppl_26a": 3934.9,
+    "ppl_26c": 2482.24,
+    "delta": -1452.66,
+    "fold_improvement": 1.59
+  },
+  {
+    "domain": "URLs / Symbols / Paths",
+    "ppl_26a": 9329.52,
+    "ppl_26c": 2289.53,
+    "delta": -7039.99,
+    "fold_improvement": 4.07
+  },
+  {
+    "domain": "Tamil",
+    "ppl_26a": 1716115.14,
+    "ppl_26c": 1.2,
+    "delta": -1716113.94,
+    "fold_improvement": 1430095.95
+  },
+  {
+    "domain": "Hindi",
+    "ppl_26a": 5553345.19,
+    "ppl_26c": 1.44,
+    "delta": -5553343.75,
+    "fold_improvement": 3856489.72
+  },
+  {
+    "domain": "Chinese",
+    "ppl_26a": 1901676.13,
+    "ppl_26c": 1.49,
+    "delta": -1901674.64,
+    "fold_improvement": 1276292.7
+  },
+  {
+    "domain": "Japanese",
+    "ppl_26a": 2333522.49,
+    "ppl_26c": 1.39,
+    "delta": -2333521.1,
+    "fold_improvement": 1678793.16
+  },
+  {
+    "domain": "Arabic",
+    "ppl_26a": 2819821.93,
+    "ppl_26c": 1.46,
+    "delta": -2819820.47,
+    "fold_improvement": 1931384.88
+  },
+  {
+    "domain": "Spanish",
+    "ppl_26a": 2126.93,
+    "ppl_26c": 1.99,
+    "delta": -2124.94,
+    "fold_improvement": 1068.81
+  },
+  {
+    "domain": "French",
+    "ppl_26a": 1874.07,
+    "ppl_26c": 1.77,
+    "delta": -1872.3,
+    "fold_improvement": 1058.8
+  },
+  {
+    "domain": "Korean",
+    "ppl_26a": 537339.57,
+    "ppl_26c": 1.41,
+    "delta": -537338.16,
+    "fold_improvement": 381091.89
+  }
+]

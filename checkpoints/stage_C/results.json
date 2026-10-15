@@ -1,0 +1,14 @@
+{
+  "stage": "C",
+  "corpus": "v3",
+  "global_step": 3000,
+  "final_train_loss": 0.195494,
+  "final_train_ppl": 1.2159,
+  "final_eval_a_loss": 4.870786,
+  "final_eval_a_ppl": 130.4234,
+  "final_eval_a_bpt": 7.027059,
+  "final_eval_b_loss": 7.263419,
+  "final_eval_b_ppl": 1427.1271,
+  "final_generalization_gap": 4.675292,
+  "checkpoint": "checkpoints\\stage_C\\checkpoint_final.pt"
+}

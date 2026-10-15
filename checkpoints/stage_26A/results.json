@@ -1,0 +1,14 @@
+{
+  "stage": "26A",
+  "corpus": "Kiara-Real-v1.0",
+  "global_step": 3000,
+  "final_train_loss": 1.459064,
+  "final_train_ppl": 4.3019,
+  "final_eval_real_loss": 1.571383,
+  "final_eval_real_ppl": 4.8133,
+  "final_eval_real_bpt": 2.267027,
+  "final_eval_robust_loss": 8.963386,
+  "final_eval_robust_ppl": 7811.7657,
+  "final_generalization_gap": 0.11231900000000006,
+  "checkpoint": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\checkpoints\\stage_26A\\checkpoint_final.pt"
+}

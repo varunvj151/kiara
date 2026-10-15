@@ -1,0 +1,23 @@
+{
+  "stage": "B",
+  "global_step": 1000,
+  "final_train_loss": 0.620846,
+  "final_train_perplexity": 1.8605,
+  "final_eval_loss": 13.619732856750488,
+  "final_eval_perplexity": 822194.9873123005,
+  "samples": [
+    {
+      "prompt": "The quick brown fox",
+      "generated": "The quick brown fox yields substantial improvements in consensus efficiency."
+    },
+    {
+      "prompt": "def attention(",
+      "generated": "def attention( a multimodal framework for deadlock analysis."
+    },
+    {
+      "prompt": "Machine learning is",
+      "generated": "Machine learning is proving that residual remains invariant under non-linear detokenization transformations."
+    }
+  ],
+  "checkpoint": "checkpoints\\stage_B\\checkpoint_final.pt"
+}

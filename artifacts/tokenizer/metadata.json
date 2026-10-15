@@ -1,0 +1,13 @@
+{
+  "algorithm": "byte_bpe",
+  "vocab_size": 32768,
+  "special_tokens": [
+    "[UNK]",
+    "[PAD]",
+    "[BOS]",
+    "[EOS]"
+  ],
+  "corpus_version": "2.0.0",
+  "training_seed": 1337,
+  "benchmark_decision": "Decision 003"
+}

@@ -3,7 +3,7 @@
   "vocab_size_requested": 1000,
   "vocab_size_actual": 1000,
   "tokenizer_path": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\experiments\\tokenizer_benchmark\\data\\models\\byte_bpe_1000\\tokenizer.json",
-  "train_time_s": 0.051,
+  "train_time_s": 2.209,
   "library": "tokenizers",
   "unk_possible": false
 }

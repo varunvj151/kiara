@@ -1,0 +1,12 @@
+{"step": 250, "train_loss": 5.4469, "train_ppl": 232.03, "eval_loss": 2.3499, "eval_ppl": 10.48, "lr": 0.00029918064143792314, "tokens_seen": 512000, "elapsed_sec": 1081.6}
+{"step": 500, "train_loss": 3.6098, "train_ppl": 36.96, "eval_loss": 1.5799, "eval_ppl": 4.85, "lr": 0.0002900766990739982, "tokens_seen": 1024000, "elapsed_sec": 2006.4}
+{"step": 750, "train_loss": 2.8579, "train_ppl": 17.42, "eval_loss": 1.3823, "eval_ppl": 3.98, "lr": 0.0002715339687685131, "tokens_seen": 1536000, "elapsed_sec": 3153.2}
+{"step": 1000, "train_loss": 2.4455, "train_ppl": 11.54, "eval_loss": 1.2913, "eval_ppl": 3.64, "lr": 0.0002449517591097723, "tokens_seen": 2048000, "elapsed_sec": 4424.6}
+{"step": 1250, "train_loss": 2.1899, "train_ppl": 8.93, "eval_loss": 1.2313, "eval_ppl": 3.43, "lr": 0.00021233606995102182, "tokens_seen": 2560000, "elapsed_sec": 5649.7}
+{"step": 1500, "train_loss": 2.0048, "train_ppl": 7.42, "eval_loss": 1.1799, "eval_ppl": 3.25, "lr": 0.00017614821163876486, "tokens_seen": 3072000, "elapsed_sec": 6825.7}
+{"step": 1750, "train_loss": 1.8665, "train_ppl": 6.47, "eval_loss": 1.1375, "eval_ppl": 3.12, "lr": 0.00013911906469029532, "tokens_seen": 3584000, "elapsed_sec": 8059.4}
+{"step": 2000, "train_loss": 1.7597, "train_ppl": 5.81, "eval_loss": 1.1048, "eval_ppl": 3.02, "lr": 0.00010404299662802996, "tokens_seen": 4096000, "elapsed_sec": 9284.2}
+{"step": 2250, "train_loss": 1.6743, "train_ppl": 5.34, "eval_loss": 1.078, "eval_ppl": 2.94, "lr": 7.356698783052497e-05, "tokens_seen": 4608000, "elapsed_sec": 10504.6}
+{"step": 2500, "train_loss": 1.6031, "train_ppl": 4.97, "eval_loss": 1.0533, "eval_ppl": 2.87, "lr": 4.9990879806825864e-05, "tokens_seen": 5120000, "elapsed_sec": 11537.5}
+{"step": 2750, "train_loss": 1.5435, "train_ppl": 4.68, "eval_loss": 1.0399, "eval_ppl": 2.83, "lr": 3.509381995825119e-05, "tokens_seen": 5632000, "elapsed_sec": 12756.3}
+{"step": 3000, "train_loss": 1.4924, "train_ppl": 4.45, "eval_loss": 1.0295, "eval_ppl": 2.8, "lr": 2.9999999999999997e-05, "tokens_seen": 6144000, "elapsed_sec": 13972.7}

@@ -788,15 +788,17 @@ WordPiece and character tokenization are low priority for the first benchmark ro
 
 ### Decision Gate
 
-The final tokenizer decision should be made in a dedicated entry in docs/decisions.md with the following structure:
+The final tokenizer decision was completed following the full execution of the benchmark suite:
 
 ```
-Decision 003: Tokenizer Algorithm
-Status: Pending
-Required: Benchmark results from experiments/tokenizer_benchmark/
+Decision 003: Tokenizer Algorithm and Vocabulary Size
+Status: Accepted (2026-08-21)
+Selected: Byte-Level BPE, Vocabulary Size = 32,768 (32K)
+Evidence: experiments/tokenizer_benchmark/results/summary.md
+Formal Record: docs/decisions.md (Decision 003)
 ```
 
-The tokenizer must be frozen before any model weights are initialized. Once training begins, changing the tokenizer requires restarting from scratch.
+The tokenizer configuration is now frozen for initial Kiara foundation model pre-training. Any future architectural changes to the tokenizer will require a new formal engineering decision.
 
 ---
 

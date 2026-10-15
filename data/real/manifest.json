@@ -1,0 +1,24 @@
+{
+  "dataset_name": "Kiara-Real-v1.0",
+  "sources": [
+    {
+      "name": "TinyStories-GPT4",
+      "license": "CDLA-Permissive / Open",
+      "domain": "narrative_commonsense"
+    },
+    {
+      "name": "Wikitext-2",
+      "license": "CC-BY-SA 3.0",
+      "domain": "expository_encyclopedic"
+    }
+  ],
+  "seed": 1337,
+  "train_docs": 13813,
+  "train_tokens": 5148900,
+  "eval_docs": 1535,
+  "eval_tokens": 578889,
+  "train_sha256": "683ae1075211309ef15329aa8c605875ebe0b55d27248ecff093652766c3f25f",
+  "eval_sha256": "69ce468a0dcd92c19fbb2f889a6e9681bcc9a1f19e31504fe5a3130fca25950c",
+  "is_disjoint": true,
+  "created_at": "2026-08-23T05:38:13Z"
+}

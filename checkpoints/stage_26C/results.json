@@ -1,0 +1,13 @@
+{
+  "stage": "26C",
+  "dataset": "Kiara-Real-v2.0",
+  "steps": 3000,
+  "final_train_loss": 1.4924,
+  "final_train_ppl": 4.45,
+  "final_eval_loss": 1.0295,
+  "final_eval_ppl": 2.8,
+  "generalization_gap": -0.4629,
+  "total_training_time_sec": 13973.6,
+  "checkpoint_final": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\checkpoints\\stage_26C\\checkpoint_final.pt",
+  "created_at": "2026-08-24T16:07:27Z"
+}

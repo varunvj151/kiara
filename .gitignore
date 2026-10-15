@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Model Checkpoints & Large Binaries (> 100MB)
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+checkpoints/**/*.pt
+checkpoints/**/checkpoint_*.pt

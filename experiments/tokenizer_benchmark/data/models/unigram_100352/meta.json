@@ -1,0 +1,10 @@
+{
+  "algo": "unigram",
+  "vocab_size_requested": 100352,
+  "vocab_size_actual": 100352,
+  "tokenizer_path": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\experiments\\tokenizer_benchmark\\data\\models\\unigram_100352\\tokenizer.json",
+  "train_time_s": 20.971,
+  "library": "tokenizers",
+  "unk_id": null,
+  "unk_possible": false
+}

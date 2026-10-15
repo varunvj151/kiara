@@ -122,6 +122,7 @@ def train_byte_bpe(
     trainer = BpeTrainer(
         vocab_size=vocab_size,
         special_tokens=SPECIAL_TOKENS,
+        initial_alphabet=ByteLevel.alphabet(),
         min_frequency=1,
         show_progress=False,
     )
@@ -155,21 +156,25 @@ def train_bpe(
 ) -> dict[str, Any]:
     """Train a Standard (character-level) BPE tokenizer.
 
-    Uses HuggingFace tokenizers with Whitespace pre-tokenizer.
-    Can produce UNK tokens for characters not seen during training.
+    Uses HuggingFace tokenizers with Metaspace pre-tokenizer and MetaspaceDecoder.
+    - Preserves exact whitespace and punctuation on round-trip for seen characters.
+    - Operates at the character/subword level without byte fallback:
+      unseen characters produce UNK tokens.
 
     Returns a metadata dict.
     """
     _check_tokenizers()
     from tokenizers import Tokenizer
     from tokenizers.models import BPE
-    from tokenizers.pre_tokenizers import Whitespace
+    from tokenizers.pre_tokenizers import Metaspace
     from tokenizers.trainers import BpeTrainer
+    from tokenizers.decoders import Metaspace as MetaspaceDecoder
 
     save_dir.mkdir(parents=True, exist_ok=True)
 
     tokenizer = Tokenizer(BPE(unk_token=UNK_TOKEN))
-    tokenizer.pre_tokenizer = Whitespace()
+    tokenizer.pre_tokenizer = Metaspace(replacement="▁", prepend_scheme="never")
+    tokenizer.decoder = MetaspaceDecoder(replacement="▁", prepend_scheme="never")
 
     trainer = BpeTrainer(
         vocab_size=vocab_size,
@@ -207,11 +212,12 @@ def train_unigram(
     save_dir: Path,
     seed: int = 1337,
 ) -> dict[str, Any]:
-    """Train a Unigram tokenizer.
+    """Train a Unigram tokenizer with Byte Fallback.
 
-    Uses HuggingFace tokenizers (Unigram model with Metaspace pre-tokenizer).
-    This mirrors the SentencePiece Unigram approach without requiring a
-    separate sentencepiece install.
+    Uses HuggingFace tokenizers (Unigram model with Metaspace pre-tokenizer,
+    ByteFallback + MetaspaceDecoder, and byte tokens for out-of-vocabulary characters).
+    - Preserves exact whitespace and punctuation.
+    - Handles unseen characters via byte fallback (guaranteed zero UNK tokens).
 
     Returns a metadata dict.
     """
@@ -220,16 +226,17 @@ def train_unigram(
     from tokenizers.models import Unigram
     from tokenizers.pre_tokenizers import Metaspace
     from tokenizers.trainers import UnigramTrainer
-    from tokenizers.decoders import Metaspace as MetaspaceDecoder
+    from tokenizers.decoders import Metaspace as MetaspaceDecoder, ByteFallback, Sequence
 
     save_dir.mkdir(parents=True, exist_ok=True)
 
     tokenizer = Tokenizer(Unigram())
-    tokenizer.pre_tokenizer = Metaspace(replacement="▁", prepend_scheme="always")
-    tokenizer.decoder = MetaspaceDecoder(replacement="▁", prepend_scheme="always")
+    tokenizer.pre_tokenizer = Metaspace(replacement="▁", prepend_scheme="never")
 
+    # Reserve 256 tokens for byte fallback alphabet to hit exact requested vocab_size
+    train_vocab_size = max(len(SPECIAL_TOKENS) + 256, vocab_size - 256)
     trainer = UnigramTrainer(
-        vocab_size=vocab_size,
+        vocab_size=train_vocab_size,
         special_tokens=SPECIAL_TOKENS,
         unk_token=UNK_TOKEN,
         show_progress=False,
@@ -242,11 +249,22 @@ def train_unigram(
     tokenizer.train_from_iterator(texts, trainer=trainer)
     train_time_s = time.perf_counter() - t0
 
+    # Inject byte fallback tokens (<0x00>..<0xFF>) and enable byte_fallback on model
+    tok_json = json.loads(tokenizer.to_str())
+    existing_vocab = tok_json["model"]["vocab"]
+    existing_tokens = {v[0] for v in existing_vocab}
+    byte_tokens = [[f"<0x{i:02X}>", -100.0] for i in range(256) if f"<0x{i:02X}>" not in existing_tokens]
+    tok_json["model"]["vocab"] = existing_vocab + byte_tokens
+    tok_json["model"]["byte_fallback"] = True
+
+    # Re-instantiate tokenizer with Sequence([ByteFallback(), MetaspaceDecoder()])
+    tokenizer = Tokenizer.from_str(json.dumps(tok_json))
+    tokenizer.decoder = Sequence([ByteFallback(), MetaspaceDecoder(replacement="▁", prepend_scheme="never")])
+
     actual_vocab_size = tokenizer.get_vocab_size()
     tokenizer_path = save_dir / "tokenizer.json"
     tokenizer.save(str(tokenizer_path))
 
-    unk_id = tokenizer.token_to_id(UNK_TOKEN)
     meta = {
         "algo": "unigram",
         "vocab_size_requested": vocab_size,
@@ -254,8 +272,8 @@ def train_unigram(
         "tokenizer_path": str(tokenizer_path),
         "train_time_s": round(train_time_s, 3),
         "library": "tokenizers",
-        "unk_id": unk_id,
-        "unk_possible": True,
+        "unk_id": None,
+        "unk_possible": False,
     }
     (save_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return meta

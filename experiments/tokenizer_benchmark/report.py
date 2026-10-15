@@ -58,15 +58,25 @@ def generate_report(results_path: Path | None = None) -> str:
     )
     lines.append("---\n")
 
-    # --- Environment ---
+    # --- Environment & Corpus Stats ---
     if data:
         r0 = data[0]
-        lines.append("## Environment\n")
+        lines.append("## Environment & Corpus\n")
         lines.append(f"- **Python version:** {r0.get('python_version', '?')}")
         lines.append(f"- **Tokenizers library:** {r0.get('library_version', '?')}")
         lines.append(f"- **Corpus version:** {r0.get('corpus_version', '?')}")
         lines.append(f"- **Random seed:** {r0.get('random_seed', '?')}")
+        try:
+            from corpus import corpus_stats
+            c_stats = corpus_stats()
+            tr = c_stats.get("training", {})
+            ev = c_stats.get("evaluation", {})
+            lines.append(f"- **Training dataset:** {tr.get('num_samples', 0):,} samples ({tr.get('approx_mb', 0)} MB, {tr.get('unique_words', 0):,} unique words)")
+            lines.append(f"- **Evaluation dataset:** {ev.get('num_samples', 0)} samples across {len(ev.get('categories', {}))} categories (Disjoint: {c_stats.get('is_disjoint')})")
+        except Exception:
+            pass
         lines.append("")
+
 
     # --- Aggregate comparison table ---
     lines.append("## Aggregate Comparison\n")
@@ -121,9 +131,9 @@ def generate_report(results_path: Path | None = None) -> str:
     lines.append("")
 
     # --- UNK analysis ---
-    lines.append("## Unknown Token Analysis\n")
-    lines.append("| Algorithm | Vocab | UNK tokens | UNK samples | Round-trip failures |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("## Unknown Token & Round-Trip Diagnostics\n")
+    lines.append("| Algorithm | Vocab | UNK tokens | UNK samples | Total RT Failures | Failures (UNK) | Failures (Decoder) |")
+    lines.append("|---|---|---|---|---|---|---|")
     for r in data:
         if not r.get("success"):
             continue
@@ -133,9 +143,40 @@ def generate_report(results_path: Path | None = None) -> str:
             f"| {r['vocab_size_requested']:,} "
             f"| {agg.get('unk_count', '?')} "
             f"| {agg.get('unk_sample_count', '?')} "
-            f"| {agg.get('round_trip_failures', '?')} |"
+            f"| {agg.get('round_trip_failures', '?')} "
+            f"| {agg.get('round_trip_failures_due_to_unk', '?')} "
+            f"| {agg.get('round_trip_failures_due_to_decoder', '?')} |"
         )
 
+    lines.append("")
+
+    # --- Vocabulary Efficiency ---
+    lines.append("## Vocabulary Efficiency (10k Training Sample)\n")
+    lines.append(
+        "| Algorithm | Vocab | Utilized | Util % | Freq >= 10 | Well-Rep (>=10) % | "
+        "Freq >= 100 | Top 10% Active | Top 25% Active | Top 50% Active | Top 100 | Top 500 | Top 1k |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    for r in data:
+        if not r.get("success"):
+            continue
+        ve = r.get("vocabulary_efficiency")
+        if ve:
+            lines.append(
+                f"| {r['tokenizer_type']} "
+                f"| {r['vocab_size_requested']:,} "
+                f"| {ve.get('unique_tokens_observed', 0):,} "
+                f"| {_fmt(ve.get('utilization_ratio', 0) * 100, '.1f')}% "
+                f"| {ve.get('tokens_freq_ge_10', 0):,} "
+                f"| {_fmt(ve.get('well_represented_ratio_ge_10', 0) * 100, '.1f')}% "
+                f"| {ve.get('tokens_freq_ge_100', 0):,} "
+                f"| {_fmt(ve.get('top_10pct_active_token_occurrence_coverage', 0) * 100, '.1f')}% "
+                f"| {_fmt(ve.get('top_25pct_active_token_occurrence_coverage', 0) * 100, '.1f')}% "
+                f"| {_fmt(ve.get('top_50pct_active_token_occurrence_coverage', 0) * 100, '.1f')}% "
+                f"| {_fmt(ve.get('top_100_token_occurrence_coverage', 0) * 100, '.1f')}% "
+                f"| {_fmt(ve.get('top_500_token_occurrence_coverage', 0) * 100, '.1f')}% "
+                f"| {_fmt(ve.get('top_1000_token_occurrence_coverage', 0) * 100, '.1f')}% |"
+            )
     lines.append("")
 
     # --- Speed comparison ---

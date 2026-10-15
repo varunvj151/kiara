@@ -1,0 +1,14 @@
+{
+  "tokenizer_type": "byte_bpe",
+  "vocab_size": 32768,
+  "unk_token": "[UNK]",
+  "pad_token": "[PAD]",
+  "bos_token": "[BOS]",
+  "eos_token": "[EOS]",
+  "unk_token_id": 0,
+  "pad_token_id": 1,
+  "bos_token_id": 2,
+  "eos_token_id": 3,
+  "add_prefix_space": false,
+  "trim_offsets": true
+}

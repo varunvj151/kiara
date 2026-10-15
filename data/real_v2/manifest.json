@@ -1,0 +1,39 @@
+{
+  "dataset_name": "Kiara-Real-v2.0",
+  "description": "Multi-domain foundation pre-training mixture spanning 6 distinct domains.",
+  "domains": {
+    "natural": {
+      "tokens": 2898890,
+      "pct": 44.55
+    },
+    "technical": {
+      "tokens": 734653,
+      "pct": 11.29
+    },
+    "multilingual": {
+      "tokens": 713478,
+      "pct": 10.97
+    },
+    "structured": {
+      "tokens": 220022,
+      "pct": 3.38
+    },
+    "source": {
+      "tokens": 843454,
+      "pct": 12.96
+    },
+    "mathematics": {
+      "tokens": 1096245,
+      "pct": 16.85
+    }
+  },
+  "seed": 1337,
+  "train_docs": 28632,
+  "train_tokens": 6506742,
+  "eval_docs": 3182,
+  "eval_tokens": 733037,
+  "train_sha256": "283f04bd2b5d46b41267aa78c94dbea2aeb662e493f3e36d3f3547888483c1d9",
+  "eval_sha256": "4ae0596ba5b5e5ca297836d04ad1d0ff94c7ed157c451699f297d529ecd40c8a",
+  "is_disjoint": true,
+  "created_at": "2026-08-24T09:46:59Z"
+}

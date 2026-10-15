@@ -35,8 +35,15 @@ from pathlib import Path
 BENCHMARK_DIR = Path(__file__).parent
 sys.path.insert(0, str(BENCHMARK_DIR))
 
-from corpus import get_corpus, get_all_texts, CORPUS_VERSION
-from metrics import BenchmarkResult, measure_category, aggregate_results, CategoryMetrics
+from corpus import get_corpus, get_eval_corpus, get_training_texts, corpus_stats, CORPUS_VERSION
+from metrics import (
+    BenchmarkResult,
+    measure_category,
+    measure_vocabulary_efficiency,
+    aggregate_results,
+    CategoryMetrics,
+    VocabularyEfficiency,
+)
 from train import (
     train_tokenizer,
     load_tokenizer_fns,
@@ -63,11 +70,15 @@ DEFAULT_SEED = 1337
 def run_single(
     algo: str,
     vocab_size: int,
-    corpus: dict[str, list[str]],
+    training_texts: list[str],
+    eval_corpus: dict[str, list[str]],
     seed: int,
     force_retrain: bool,
 ) -> BenchmarkResult:
     """Run benchmark for one (algo, vocab_size) combination.
+
+    Trains exclusively on `training_texts` and evaluates exclusively
+    on the held-out `eval_corpus`.
 
     Returns a BenchmarkResult (success or failure recorded).
     """
@@ -83,13 +94,11 @@ def run_single(
     result.library = "tokenizers"
     result.library_version = lib_versions.get("tokenizers", "unknown")
 
-    all_texts = get_all_texts()
-
-    # --- Train tokenizer ---
+    # --- Train tokenizer on training corpus only ---
     try:
         meta = train_tokenizer(
             algo=algo,
-            texts=all_texts,
+            texts=training_texts,
             vocab_size=vocab_size,
             seed=seed,
             force_retrain=force_retrain,
@@ -111,8 +120,8 @@ def run_single(
         print(f"  ERROR loading {algo} vocab={vocab_size}: {exc}")
         return result
 
-    # --- Run metrics per category ---
-    for cat_name, texts in corpus.items():
+    # --- Run metrics per held-out category ---
+    for cat_name, texts in eval_corpus.items():
         try:
             cat_metrics = measure_category(
                 texts=texts,
@@ -132,6 +141,28 @@ def run_single(
 
     # --- Aggregate ---
     aggregate_results(result)
+
+    # --- Vocabulary efficiency ---
+    #
+    # Use a deterministic representative sample from the training corpus.
+    # The tokenizer was trained on the full training corpus, but this metric
+    # intentionally measures vocabulary usage on a smaller sample.
+    sample_size = min(10_000, len(training_texts))
+    vocabulary_sample = training_texts[:sample_size]
+
+    try:
+        vocab_efficiency = measure_vocabulary_efficiency(
+            texts=vocabulary_sample,
+            encode_fn=encode_fn,
+            vocab_size=result.vocab_size_actual,
+            special_token_count=4,
+        )
+        result.vocabulary_efficiency = vocab_efficiency
+    except Exception as exc:
+        print(
+            f"  WARNING: vocabulary efficiency failed for "
+            f"{algo} vocab={vocab_size}: {exc}"
+        )
 
     return result
 
@@ -153,7 +184,8 @@ def run_benchmark(
     Returns:
         List of BenchmarkResult objects, one per (algo, vocab_size) pair.
     """
-    corpus = get_corpus()
+    training_texts = get_training_texts(seed=seed)
+    eval_corpus = get_eval_corpus()
     results: list[BenchmarkResult] = []
 
     total = len(algos) * len(vocab_sizes)
@@ -166,11 +198,13 @@ def run_benchmark(
             result = run_single(
                 algo=algo,
                 vocab_size=vocab_size,
-                corpus=corpus,
+                training_texts=training_texts,
+                eval_corpus=eval_corpus,
                 seed=seed,
                 force_retrain=force_retrain,
             )
             results.append(result)
+
 
             if result.success:
                 status = "PASS" if result.overall_round_trip_pass else "FAIL (round-trip)"
@@ -210,6 +244,8 @@ def result_to_dict(r: BenchmarkResult) -> dict:
             "decode_throughput_tps": round(m.decode_throughput_tokens_per_sec),
             "round_trip_pass": m.round_trip_pass,
             "round_trip_failures": m.round_trip_failures,
+            "round_trip_failures_due_to_unk": m.round_trip_failures_due_to_unk,
+            "round_trip_failures_due_to_decoder": m.round_trip_failures_due_to_decoder,
             "unk_token_count": m.unk_token_count,
             "unk_sample_count": m.unk_sample_count,
         }
@@ -240,10 +276,58 @@ def result_to_dict(r: BenchmarkResult) -> dict:
             "decode_throughput_tps": round(r.overall_decode_throughput),
             "round_trip_pass": r.overall_round_trip_pass,
             "round_trip_failures": r.overall_round_trip_failures,
+            "round_trip_failures_due_to_unk": r.overall_round_trip_failures_due_to_unk,
+            "round_trip_failures_due_to_decoder": r.overall_round_trip_failures_due_to_decoder,
             "unk_count": r.overall_unk_count,
             "unk_sample_count": r.overall_unk_sample_count,
         },
         "by_category": {k: cat_to_dict(v) for k, v in r.by_category.items()},
+        "vocabulary_efficiency": None
+        if r.vocabulary_efficiency is None
+        else {
+            "vocab_size": r.vocabulary_efficiency.vocab_size,
+            "special_token_count": r.vocabulary_efficiency.special_token_count,
+            "usable_vocab_size": r.vocabulary_efficiency.usable_vocab_size,
+            "unique_tokens_observed": r.vocabulary_efficiency.unique_tokens_observed,
+            "utilization_ratio": round(
+                r.vocabulary_efficiency.utilization_ratio, 5
+            ),
+            "tokens_freq_ge_1": r.vocabulary_efficiency.tokens_freq_ge_1,
+            "tokens_freq_ge_10": r.vocabulary_efficiency.tokens_freq_ge_10,
+            "tokens_freq_ge_100": r.vocabulary_efficiency.tokens_freq_ge_100,
+            "well_represented_ratio_ge_10": round(
+                r.vocabulary_efficiency.well_represented_ratio_ge_10,
+                5,
+            ),
+            "well_represented_ratio_ge_100": round(
+                r.vocabulary_efficiency.well_represented_ratio_ge_100,
+                5,
+            ),
+            "top_10pct_active_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_10pct_active_token_occurrence_coverage,
+                5,
+            ),
+            "top_25pct_active_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_25pct_active_token_occurrence_coverage,
+                5,
+            ),
+            "top_50pct_active_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_50pct_active_token_occurrence_coverage,
+                5,
+            ),
+            "top_100_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_100_token_occurrence_coverage,
+                5,
+            ),
+            "top_500_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_500_token_occurrence_coverage,
+                5,
+            ),
+            "top_1000_token_occurrence_coverage": round(
+                r.vocabulary_efficiency.top_1000_token_occurrence_coverage,
+                5,
+            ),
+        },
     }
 
 
@@ -273,7 +357,18 @@ def save_csv(results: list[BenchmarkResult]) -> Path:
         "decode_time_ms",
         "round_trip_pass",
         "round_trip_failures",
+        "round_trip_failures_due_to_unk",
+        "round_trip_failures_due_to_decoder",
         "unk_count",
+        "vocab_utilization_ratio",
+        "well_rep_ge_10_ratio",
+        "well_rep_ge_100_ratio",
+        "top_10pct_active_cov",
+        "top_25pct_active_cov",
+        "top_50pct_active_cov",
+        "top_100_cov",
+        "top_500_cov",
+        "top_1000_cov",
         "library_version",
         "python_version",
         "timestamp",
@@ -284,6 +379,7 @@ def save_csv(results: list[BenchmarkResult]) -> Path:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for r in results:
+            ve = r.vocabulary_efficiency
             writer.writerow(
                 {
                     "tokenizer_type": r.tokenizer_type,
@@ -300,7 +396,18 @@ def save_csv(results: list[BenchmarkResult]) -> Path:
                     "decode_time_ms": round(r.overall_decode_time_ms, 3),
                     "round_trip_pass": r.overall_round_trip_pass,
                     "round_trip_failures": r.overall_round_trip_failures,
+                    "round_trip_failures_due_to_unk": r.overall_round_trip_failures_due_to_unk,
+                    "round_trip_failures_due_to_decoder": r.overall_round_trip_failures_due_to_decoder,
                     "unk_count": r.overall_unk_count,
+                    "vocab_utilization_ratio": round(ve.utilization_ratio, 5) if ve else None,
+                    "well_rep_ge_10_ratio": round(ve.well_represented_ratio_ge_10, 5) if ve else None,
+                    "well_rep_ge_100_ratio": round(ve.well_represented_ratio_ge_100, 5) if ve else None,
+                    "top_10pct_active_cov": round(ve.top_10pct_active_token_occurrence_coverage, 5) if ve else None,
+                    "top_25pct_active_cov": round(ve.top_25pct_active_token_occurrence_coverage, 5) if ve else None,
+                    "top_50pct_active_cov": round(ve.top_50pct_active_token_occurrence_coverage, 5) if ve else None,
+                    "top_100_cov": round(ve.top_100_token_occurrence_coverage, 5) if ve else None,
+                    "top_500_cov": round(ve.top_500_token_occurrence_coverage, 5) if ve else None,
+                    "top_1000_cov": round(ve.top_1000_token_occurrence_coverage, 5) if ve else None,
                     "library_version": r.library_version,
                     "python_version": r.python_version,
                     "timestamp": r.timestamp,
@@ -359,6 +466,7 @@ def main() -> None:
         algos = args.algos
         vocab_sizes = args.vocab_sizes
 
+    stats = corpus_stats()
     print("=" * 60)
     print("Kiara Tokenizer Benchmark")
     print(f"  Algorithms : {algos}")
@@ -366,6 +474,8 @@ def main() -> None:
     print(f"  Seed       : {args.seed}")
     print(f"  Versions   : {get_library_versions()}")
     print(f"  Corpus ver : {CORPUS_VERSION}")
+    print(f"  Train data : {stats['training']['num_samples']:,} samples, {stats['training']['approx_mb']} MB, {stats['training']['unique_words']:,} unique words")
+    print(f"  Eval data  : {stats['evaluation']['num_samples']} samples across {len(stats['evaluation']['categories'])} categories (Disjoint: {stats['is_disjoint']})")
     print("=" * 60)
 
     results = run_benchmark(

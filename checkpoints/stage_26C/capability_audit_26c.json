@@ -1,0 +1,195 @@
+{
+  "stage": "26C",
+  "checkpoint": "C:\\Users\\varun\\OneDrive\\Documents\\flutter1\\kiara\\checkpoints\\stage_26C\\checkpoint_final.pt",
+  "device": "cpu",
+  "audit_duration_seconds": 225.3,
+  "pillar_1_subdomain": {
+    "tinystories": {
+      "loss": 1.5627,
+      "ppl": 4.77,
+      "bpt": 2.2545,
+      "num_tokens": 119552,
+      "chars_per_token": 1.993
+    },
+    "wikitext": {
+      "loss": 3.4187,
+      "ppl": 30.53,
+      "bpt": 4.9321,
+      "num_tokens": 10880,
+      "chars_per_token": 2.14
+    },
+    "multi_domain_held_out": {
+      "loss": 1.008,
+      "ppl": 2.74,
+      "bpt": 1.4542,
+      "num_tokens": 114304,
+      "chars_per_token": 2.052
+    }
+  },
+  "pillar_2_crossdomain": {
+    "Technical ML Prose": {
+      "loss": 4.6622,
+      "ppl": 105.86,
+      "bpt": 6.7261,
+      "num_tokens": 1408,
+      "chars_per_token": 2.669
+    },
+    "Source Code (Py/JS/C++)": {
+      "loss": 6.4972,
+      "ppl": 663.28,
+      "bpt": 9.3735,
+      "num_tokens": 1792,
+      "chars_per_token": 2.21
+    },
+    "Structured / JSON / Tables": {
+      "loss": 5.9738,
+      "ppl": 393.01,
+      "bpt": 8.6184,
+      "num_tokens": 320,
+      "chars_per_token": 2.141
+    },
+    "Mathematics / LaTeX": {
+      "loss": 8.2752,
+      "ppl": 3925.43,
+      "bpt": 11.9386,
+      "num_tokens": 704,
+      "chars_per_token": 1.575
+    },
+    "Rare Words / Vocabulary": {
+      "loss": 7.8169,
+      "ppl": 2482.24,
+      "bpt": 11.2774,
+      "num_tokens": 384,
+      "chars_per_token": 2.76
+    },
+    "URLs / Symbols / Paths": {
+      "loss": 7.7361,
+      "ppl": 2289.53,
+      "bpt": 11.1608,
+      "num_tokens": 768,
+      "chars_per_token": 1.814
+    }
+  },
+  "pillar_3_multilingual": {
+    "tamil": {
+      "loss": 0.1834,
+      "ppl": 1.2,
+      "bpt": 0.2646,
+      "num_tokens": 1024,
+      "chars_per_token": 0.365,
+      "byte_fallback_pct": 99.81
+    },
+    "hindi": {
+      "loss": 0.3618,
+      "ppl": 1.44,
+      "bpt": 0.5219,
+      "num_tokens": 320,
+      "chars_per_token": 1.181,
+      "byte_fallback_pct": 16.67
+    },
+    "chinese": {
+      "loss": 0.3984,
+      "ppl": 1.49,
+      "bpt": 0.5747,
+      "num_tokens": 256,
+      "chars_per_token": 0.5,
+      "byte_fallback_pct": 75.87
+    },
+    "japanese": {
+      "loss": 0.3296,
+      "ppl": 1.39,
+      "bpt": 0.4755,
+      "num_tokens": 384,
+      "chars_per_token": 0.464,
+      "byte_fallback_pct": 69.66
+    },
+    "arabic": {
+      "loss": 0.3786,
+      "ppl": 1.46,
+      "bpt": 0.5463,
+      "num_tokens": 256,
+      "chars_per_token": 1.363,
+      "byte_fallback_pct": 31.48
+    },
+    "spanish": {
+      "loss": 0.6873,
+      "ppl": 1.99,
+      "bpt": 0.9915,
+      "num_tokens": 128,
+      "chars_per_token": 3.578,
+      "byte_fallback_pct": 25.54
+    },
+    "french": {
+      "loss": 0.5691,
+      "ppl": 1.77,
+      "bpt": 0.8211,
+      "num_tokens": 128,
+      "chars_per_token": 3.297,
+      "byte_fallback_pct": 30.11
+    },
+    "korean": {
+      "loss": 0.342,
+      "ppl": 1.41,
+      "bpt": 0.4934,
+      "num_tokens": 320,
+      "chars_per_token": 0.581,
+      "byte_fallback_pct": 76.05
+    }
+  },
+  "pillar_4_memorization": {
+    "train_audit": {
+      "num_tested": 53,
+      "exact_match_pct": 66.04,
+      "mean_rouge_l": 0.7221,
+      "mean_edit_similarity": 0.774,
+      "continuation_loss": 0.6568,
+      "continuation_ppl": 1.93
+    },
+    "eval_audit": {
+      "num_tested": 54,
+      "exact_match_pct": 74.07,
+      "mean_rouge_l": 0.7938,
+      "mean_edit_similarity": 0.8258,
+      "continuation_loss": 0.4498,
+      "continuation_ppl": 1.57
+    }
+  },
+  "pillar_5_qualitative": [
+    {
+      "domain": "Narrative",
+      "prompt": "Once upon a time, in a small quiet village,",
+      "completion": "there was a little girl named Lily. She loved to play with her toys and have fun."
+    },
+    {
+      "domain": "Expository",
+      "prompt": "The solar system consists of the Sun and the objects that",
+      "completion": "he was also also also also also also also also also also also also"
+    },
+    {
+      "domain": "Dialogue",
+      "prompt": "Lily looked at the big box and asked, \"What is inside?",
+      "completion": "\"\n\"It's okay, Lily. It is a big smile. It is not a big box. It is"
+    },
+    {
+      "domain": "Reasoning",
+      "prompt": "Because it was raining heavily outside, Tom decided to",
+      "completion": "play with his toys. He was so happy to see him.\nOne day, Tim saw a big b"
+    },
+    {
+      "domain": "Technical",
+      "prompt": "In computer science, a neural network is defined as",
+      "completion": "D_KL(P || Q) = int p(x) log(p(x) / q(x)) dx. By Gibbs' inequality,"
+    },
+    {
+      "domain": "Code",
+      "prompt": "def bubble_sort(arr):",
+      "completion": "\"\"\"Encode a list of texts, returning padded tensors.\"\"\"\n all_ids = [tokenizer.encode"
+    },
+    {
+      "domain": "Math",
+      "prompt": "The Cauchy-Schwarz inequality states that",
+      "completion": "he was also also also also also also also also also also also also"
+    }
+  ],
+  "created_at": "2026-08-24T16:25:27Z"
+}

@@ -1,1 +1,1 @@
-# kiara
+# kiara  .\.venv\Scripts\Activate.ps1
