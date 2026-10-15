@@ -253,6 +253,7 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
 
             t0 = time.time()
             tokens_generated = 0
+            prev_text = ""
 
             with torch.no_grad():
                 for _ in range(max_new_tokens):
@@ -291,17 +292,24 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     generated = torch.cat((generated, next_tok), dim=-1)
                     tokens_generated += 1
 
-                    # Decode single token
-                    token_str = CURRENT_TOKENIZER.decode([tok_id], skip_special_tokens=False)
+                    # Cumulative delta decoding prevents multi-byte UTF-8 byte fragmentation
+                    all_gen_ids = generated[0, len(input_ids):].tolist()
+                    full_text = CURRENT_TOKENIZER.decode(all_gen_ids, skip_special_tokens=False)
 
                     # Stop conditions
-                    if tok_id == eos_id or "[EOS]" in token_str or "<|im_end|>" in token_str:
+                    if tok_id == eos_id or "[EOS]" in full_text or "<|im_end|>" in full_text:
                         break
-                    if "###" in token_str:
+                    if "###" in full_text:
                         break
 
+                    delta = full_text[len(prev_text):]
+                    if not delta or "\ufffd" in delta:
+                        continue
+
+                    prev_text = full_text
+
                     # Send SSE chunk
-                    chunk_payload = json.dumps({"token": token_str, "done": False})
+                    chunk_payload = json.dumps({"token": delta, "done": False})
                     try:
                         self.wfile.write(f"data: {chunk_payload}\n\n".encode("utf-8"))
                         self.wfile.flush()
