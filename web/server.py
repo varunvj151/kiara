@@ -165,7 +165,7 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             status_data = {
                 "status": "online",
                 "model_name": "Kiara",
-                "checkpoint": str(CURRENT_CKPT_PATH.name) if CURRENT_CKPT_PATH else "demo",
+                "checkpoint": f"{CURRENT_CKPT_PATH.parent.name}/{CURRENT_CKPT_PATH.name}" if CURRENT_CKPT_PATH else "demo",
                 "checkpoint_path": str(CURRENT_CKPT_PATH) if CURRENT_CKPT_PATH else "",
                 "parameters": params,
                 "device": str(DEVICE),
@@ -195,7 +195,11 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"success": True, "checkpoint": str(ckpt_path.name)}).encode("utf-8"))
+                self.wfile.write(json.dumps({
+                    "success": True,
+                    "checkpoint": f"{ckpt_path.parent.name}/{ckpt_path.name}",
+                    "checkpoint_path": str(ckpt_path)
+                }).encode("utf-8"))
             else:
                 self.send_response(HTTPStatus.BAD_REQUEST)
                 self.send_header("Content-Type", "application/json")

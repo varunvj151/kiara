@@ -540,11 +540,13 @@
       // Populate Checkpoints
       el.checkpointSelect.innerHTML = '';
       if (data.available_checkpoints && data.available_checkpoints.length) {
+        const currentNorm = (data.checkpoint_path || '').replace(/\\/g, '/').toLowerCase();
         data.available_checkpoints.forEach(ckpt => {
           const opt = document.createElement('option');
           opt.value = ckpt.path;
           opt.textContent = `${ckpt.name} (${ckpt.size_mb} MB)`;
-          if (data.checkpoint_path && data.checkpoint_path.endsWith(ckpt.path.split(/[/\\]/).pop())) {
+          const ckptNorm = (ckpt.path || '').replace(/\\/g, '/').toLowerCase();
+          if (currentNorm && currentNorm === ckptNorm) {
             opt.selected = true;
           }
           el.checkpointSelect.appendChild(opt);
