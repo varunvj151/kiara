@@ -74,12 +74,18 @@ def generate_text(
     model: KiaraForCausalLM,
     tokenizer: KiaraTokenizer,
     prompt: str,
-    max_new_tokens: int = 40,
+    max_new_tokens: int = 60,
     temperature: float = 0.7,
     top_k: int = 40,
+    instruct: bool = False,
     device: torch.device = torch.device("cpu"),
-) -> str:
-    input_ids = tokenizer.encode(prompt, bos=True)
+) -> tuple[str, int, float]:
+    if instruct:
+        formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+    else:
+        formatted_prompt = prompt
+
+    input_ids = tokenizer.encode(formatted_prompt, bos=True)
     t_ids = torch.tensor([input_ids], dtype=torch.long, device=device)
 
     t0 = time.time()
@@ -98,6 +104,13 @@ def generate_text(
     tokens_gen = len(generated_ids) - len(input_ids)
     tok_per_sec = tokens_gen / max(0.001, elapsed)
 
+    if instruct and formatted_prompt in full_text:
+        continuation = full_text[len(formatted_prompt):].strip()
+        # Clean trailing instruction tag if any
+        if "###" in continuation:
+            continuation = continuation.split("###")[0].strip()
+        return continuation, tokens_gen, tok_per_sec
+
     return full_text, tokens_gen, tok_per_sec
 
 
@@ -105,9 +118,10 @@ def main():
     parser = argparse.ArgumentParser(description="Chat / Text Generation with Kiara")
     parser.add_argument("--checkpoint", type=str, default=str(DEFAULT_CKPT), help="Path to checkpoint .pt")
     parser.add_argument("--prompt", type=str, default=None, help="Single prompt to generate and exit")
-    parser.add_argument("--max-tokens", type=int, default=50, help="Max new tokens to generate")
+    parser.add_argument("--max-tokens", type=int, default=60, help="Max new tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature (0.0 for greedy)")
     parser.add_argument("--top-k", type=int, default=40, help="Top-k filtering")
+    parser.add_argument("--instruct", action="store_true", help="Format prompt with instruction template")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -118,8 +132,11 @@ def main():
         print(f"Error: Checkpoint not found at {ckpt_path}")
         sys.exit(1)
 
+    # Auto-enable instruct mode if checkpoint path has 'instruct'
+    instruct_mode = args.instruct or ("instruct" in str(ckpt_path).lower())
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device} | Active CPU Threads: {torch.get_num_threads()}")
+    print(f"Device: {device} | Active CPU Threads: {torch.get_num_threads()} | Instruct Mode: {instruct_mode}")
     model, tokenizer = load_model_and_tokenizer(ckpt_path, device)
     param_count = sum(p.numel() for p in model.parameters())
     print(f"Kiara Ready! Parameters: {param_count:,}")
@@ -133,6 +150,7 @@ def main():
             max_new_tokens=args.max_tokens,
             temperature=args.temperature,
             top_k=args.top_k,
+            instruct=instruct_mode,
             device=device,
         )
         print(f"Generated: {output}")
