@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiara — Autonomous Reasoning Foundation Model</title>
+  <meta name="description" content="Kiara: A transparent, reasoning-first foundation model built from first principles.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="brand-orb"></div>
+          <span class="brand-name">Kiara</span>
+          <span class="brand-badge">AI</span>
+        </div>
+        <button class="icon-btn close-sidebar-btn" id="closeSidebarBtn" title="Close Sidebar" aria-label="Close Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-action">
+        <button class="new-chat-btn" id="newChatBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Chat</span>
+          <kbd class="shortcut-key">Ctrl K</kbd>
+        </button>
+      </div>
+
+      <div class="chat-history-container">
+        <div class="history-label">Recent Conversations</div>
+        <div class="chat-history-list" id="chatHistoryList">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="model-status-card" id="statusCard">
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span class="status-text" id="statusText">Connecting...</span>
+          </div>
+          <div class="status-details">
+            <span id="modelParamText">40.9M Params</span> • <span id="modelDeviceText">CPU</span>
+          </div>
+        </div>
+        <button class="settings-trigger-btn" id="settingsTriggerBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Model Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Arena -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Sidebar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <div class="chat-title-wrapper">
+            <h1 class="chat-title" id="chatTitle">Kiara Reasoning Assistant</h1>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="active-badge" id="activeBadge">
+            <span class="active-indicator"></span>
+            <span class="active-label" id="activeLabel">Kiara-Instruct</span>
+          </div>
+          <button class="icon-btn" id="topSettingsBtn" title="Settings" aria-label="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat Messages Container -->
+      <div class="chat-viewport" id="chatViewport">
+        <!-- Hero Welcome View (Shown when no messages) -->
+        <div class="hero-welcome" id="heroWelcome">
+          <div class="hero-glow"></div>
+          <div class="hero-orb">
+            <div class="orb-inner"></div>
+          </div>
+          <h2 class="hero-heading">What can we build today?</h2>
+          <p class="hero-subtitle">
+            Kiara is an open, reasoning-first AI foundation model built from first principles with GQA attention, RoPE positional encoding, and Byte-BPE tokenization.
+          </p>
+
+          <div class="starter-grid">
+            <button class="starter-card" data-prompt="Write a Python function to check if a number is prime.">
+              <div class="card-icon code-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Python Function</div>
+                <div class="card-desc">Check if a number is prime with optimized loop.</div>
+              </div>
+            </button>
+
+            <button class="starter-card" data-prompt="Who are you and what is your architecture?">
+              <div class="card-icon ai-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V18a1 1 0 0 1-2 0v-1.07A7 7 0 0 1 5.07 11H4a1 1 0 0 1 0-2h1.07A7 7 0 0 1 11 3.07V2a1 1 0 0 1 2 0v1.07A7 7 0 0 1 18.93 9H20a1 1 0 0 1 0 2h-1.07A7 7 0 0 1 13 16.93z"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Identity & Architecture</div>
+                <div class="card-desc">Explain Kiara's transformer specifications.</div>
+              </div>
+            </button>
+
+            <button class="starter-card" data-prompt="Explain how self-attention works in transformers.">
+              <div class="card-icon math-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Transformer Theory</div>
+                <div class="card-desc">Step-by-step intuition behind self-attention.</div>
+              </div>
+            </button>
+
+            <button class="starter-card" data-prompt="Give three tips for staying healthy.">
+              <div class="card-icon general-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Knowledge Synthesis</div>
+                <div class="card-desc">Clear, structured bullet-point advice.</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Message List -->
+        <div class="messages-list" id="messagesList"></div>
+      </div>
+
+      <!-- Bottom Chat Input Bar -->
+      <div class="input-container">
+        <form class="chat-form" id="chatForm">
+          <div class="input-card">
+            <textarea
+              id="promptInput"
+              class="prompt-textarea"
+              placeholder="Ask Kiara anything... (Shift + Enter for new line)"
+              rows="1"
+              required
+            ></textarea>
+
+            <div class="input-toolbar">
+              <div class="input-params-pills">
+                <span class="pill-badge" id="tempPill">Temp: 0.7</span>
+                <span class="pill-badge" id="tokensPill">Max: 100</span>
+                <span class="pill-badge active" id="instructPill">Instruct Mode</span>
+              </div>
+
+              <div class="input-buttons">
+                <button type="button" class="stop-btn" id="stopBtn" style="display: none;">
+                  <span class="stop-square"></span>
+                  <span>Stop</span>
+                </button>
+                <button type="submit" class="send-btn" id="sendBtn" aria-label="Send Message">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+        <div class="input-disclaimer">
+          Kiara is an autonomous foundation model. Verification is recommended for mission-critical code.
+        </div>
+      </div>
+    </main>
+
+    <!-- Settings Drawer Modal -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <div class="settings-drawer" id="settingsDrawer">
+      <div class="drawer-header">
+        <h3>Model Configuration</h3>
+        <button class="icon-btn" id="closeDrawerBtn" aria-label="Close Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="setting-item">
+          <label for="checkpointSelect">Active Checkpoint</label>
+          <select id="checkpointSelect" class="form-select">
+            <!-- Dynamically populated -->
+          </select>
+          <span class="setting-hint">Switch between your trained Stage 26C, 26D, or Instruct checkpoints.</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="slider-header">
+            <label for="tempSlider">Sampling Temperature</label>
+            <span class="slider-val" id="tempVal">0.7</span>
+          </div>
+          <input type="range" id="tempSlider" min="0.0" max="1.5" step="0.05" value="0.7" class="form-range">
+          <span class="setting-hint">Lower is more deterministic; higher is more creative.</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="slider-header">
+            <label for="tokensSlider">Max New Tokens</label>
+            <span class="slider-val" id="tokensVal">100</span>
+          </div>
+          <input type="range" id="tokensSlider" min="20" max="256" step="10" value="100" class="form-range">
+          <span class="setting-hint">Maximum length of the generated response.</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="slider-header">
+            <label for="topkSlider">Top-k Filtering</label>
+            <span class="slider-val" id="topkVal">40</span>
+          </div>
+          <input type="range" id="topkSlider" min="10" max="100" step="5" value="40" class="form-range">
+          <span class="setting-hint">Filters to top K highest probability candidate tokens.</span>
+        </div>
+
+        <div class="setting-item toggle-item">
+          <div>
+            <label for="instructToggle" style="margin: 0; cursor: pointer;">Instruction Format (ChatML)</label>
+            <span class="setting-hint">Wraps prompts in ### Instruction / Response tags.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="instructToggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="setting-divider"></div>
+
+        <button class="danger-btn" id="clearChatBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Clear Chat History</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
