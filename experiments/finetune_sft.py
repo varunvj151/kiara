@@ -187,6 +187,8 @@ def run_instruction_finetuning(
     # Resolve output directory
     if output_dir is not None:
         target_output_dir = Path(output_dir)
+    elif "135m" in str(base_checkpoint).lower():
+        target_output_dir = REPO_ROOT / "checkpoints" / "kiara_135m_instruct"
     elif "26d1" in str(base_checkpoint).lower() or getattr(config, "hidden_size", 512) == 768:
         target_output_dir = REPO_ROOT / "checkpoints" / "kiara_small_instruct"
     else:
@@ -195,7 +197,7 @@ def run_instruction_finetuning(
     print(f"  Output Directory: {target_output_dir}")
 
     model = KiaraForCausalLM(config)
-    model.load_state_dict(ckpt_raw["model_state_dict"])
+    model.load_state_dict(ckpt_raw["model_state_dict"], strict=False)
     del ckpt_raw
     model.to(device)
     config.save_pretrained(target_output_dir)
@@ -311,7 +313,7 @@ def run_instruction_finetuning(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-ckpt", type=str, default=str(DEFAULT_BASE_CKPT), help="Path to base pretrained checkpoint")
+    parser.add_argument("--base-ckpt", "--base-checkpoint", dest="base_ckpt", type=str, default=str(DEFAULT_BASE_CKPT), help="Path to base pretrained checkpoint")
     parser.add_argument("--output-dir", type=str, default=None, help="Output directory for fine-tuned checkpoints")
     parser.add_argument("--steps", type=int, default=800, help="Number of SFT steps")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
