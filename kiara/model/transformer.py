@@ -218,6 +218,8 @@ class KiaraForCausalLM(nn.Module):
         max_new_tokens: int = 20,
         temperature: float = 1.0,
         top_k: int | None = None,
+        top_p: float | None = None,
+        repetition_penalty: float = 1.0,
         eos_token_id: int | None = None,
         use_cache: bool = True,
     ) -> torch.Tensor:
@@ -226,6 +228,7 @@ class KiaraForCausalLM(nn.Module):
         eos_token_id = eos_token_id if eos_token_id is not None else self.config.eos_token_id
         generated = input_ids.clone()
         past_key_values = None
+        prompt_len = input_ids.shape[-1]
 
         for _ in range(max_new_tokens):
             if use_cache and past_key_values is not None:
@@ -240,17 +243,43 @@ class KiaraForCausalLM(nn.Module):
                 use_cache=use_cache,
             )
             past_key_values = outputs.past_key_values
-            next_token_logits = outputs.logits[:, -1, :]
+            next_token_logits = outputs.logits[:, -1, :].clone()
 
-            if temperature != 1.0 and temperature > 0:
+            # Apply repetition penalty to previously generated tokens
+            if repetition_penalty != 1.0 and generated.shape[-1] > prompt_len:
+                for b in range(generated.shape[0]):
+                    prev_tokens = torch.unique(generated[b, prompt_len:])
+                    for token_id in prev_tokens:
+                        logit_val = next_token_logits[b, token_id]
+                        if logit_val > 0:
+                            next_token_logits[b, token_id] = logit_val / repetition_penalty
+                        else:
+                            next_token_logits[b, token_id] = logit_val * repetition_penalty
+
+            # Temperature scaling
+            if temperature > 0 and temperature != 1.0:
                 next_token_logits = next_token_logits / temperature
 
+            # Top-K filtering
             if top_k is not None and top_k > 0:
                 v, _ = torch.topk(next_token_logits, min(top_k, next_token_logits.size(-1)))
                 next_token_logits[next_token_logits < v[:, [-1]]] = float("-inf")
 
+            # Top-P (nucleus) filtering
+            if top_p is not None and 0.0 < top_p < 1.0:
+                sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
+                cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+                sorted_indices_to_remove = cumulative_probs > top_p
+                # Shift right so we keep at least the first token
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                for b in range(next_token_logits.shape[0]):
+                    indices_to_remove = sorted_indices[b, sorted_indices_to_remove[b]]
+                    next_token_logits[b, indices_to_remove] = float("-inf")
+
             probs = F.softmax(next_token_logits, dim=-1)
-            # Greedy argmax for deterministic testing if temperature=0 else multinomial
+
+            # Greedy argmax if temperature=0 else multinomial sampling
             if temperature == 0.0:
                 next_token = torch.argmax(probs, dim=-1, keepdim=True)
             else:
