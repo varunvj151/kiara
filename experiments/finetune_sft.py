@@ -136,6 +136,7 @@ def sample_test_prompt(model, tokenizer, device, prompt: str = "Who are you?"):
 
 def run_instruction_finetuning(
     base_checkpoint: Path,
+    output_dir: Path | str | None = None,
     steps: int = 800,
     batch_size: int = 8,
     lr: float = 1e-4,
@@ -178,11 +179,21 @@ def run_instruction_finetuning(
     if config.max_position_embeddings < seq_len:
         config.max_position_embeddings = seq_len
 
+    # Resolve output directory
+    if output_dir is not None:
+        target_output_dir = Path(output_dir)
+    elif "26d1" in str(base_checkpoint).lower() or getattr(config, "hidden_size", 512) == 768:
+        target_output_dir = REPO_ROOT / "checkpoints" / "kiara_small_instruct"
+    else:
+        target_output_dir = REPO_ROOT / "checkpoints" / "kiara_instruct"
+    target_output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  Output Directory: {target_output_dir}")
+
     model = KiaraForCausalLM(config)
     model.load_state_dict(ckpt_raw["model_state_dict"])
     del ckpt_raw
     model.to(device)
-    config.save_pretrained(OUTPUT_DIR)
+    config.save_pretrained(target_output_dir)
 
     # Load SFT datasets
     train_file = DATA_DIR / "train_sft.jsonl"
@@ -270,7 +281,7 @@ def run_instruction_finetuning(
         if global_step % 400 == 0 or global_step == steps:
             ckpt_name = "checkpoint_final.pt" if global_step == steps else f"checkpoint_step_{global_step}.pt"
             save_checkpoint(
-                OUTPUT_DIR / ckpt_name,
+                target_output_dir / ckpt_name,
                 model=model,
                 optimizer=optimizer,
                 scheduler=scheduler,
@@ -283,26 +294,34 @@ def run_instruction_finetuning(
     total_time = round(time.time() - t0, 1)
     print("=" * 90)
     print(f"  INSTRUCTION FINE-TUNING COMPLETE in {total_time}s!")
-    print(f"  Instruct Model Checkpoint: {OUTPUT_DIR / 'checkpoint_final.pt'}")
+    print(f"  Instruct Model Checkpoint: {target_output_dir / 'checkpoint_final.pt'}")
     print("=" * 90 + "\n")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-ckpt", type=str, default=str(DEFAULT_BASE_CKPT), help="Path to base pretrained checkpoint")
+    parser.add_argument("--output-dir", type=str, default=None, help="Output directory for fine-tuned checkpoints")
     parser.add_argument("--steps", type=int, default=800, help="Number of SFT steps")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--seq-len", type=int, default=256, help="Sequence length")
     args = parser.parse_args()
 
+    raw_req = Path(args.base_ckpt)
     candidate_paths = [
-        Path(args.base_ckpt),
+        raw_req,
+        REPO_ROOT / raw_req,
+        Path("/content/drive/MyDrive/kiara_checkpoints") / raw_req.name,
+        Path("/content/drive/MyDrive/kiara_checkpoints") / raw_req.parent.name / raw_req.name,
         Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D1/checkpoint_final.pt"),
-        Path("/content/drive/MyDrive/kiara_checkpoints/checkpoint_final.pt"),
-        Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D2_256/checkpoint_final.pt"),
-        REPO_ROOT / "checkpoints" / "stage_26D2_256" / "checkpoint_final.pt",
+        Path("/content/kiara/checkpoints/stage_26D1/checkpoint_final.pt"),
         REPO_ROOT / "checkpoints" / "stage_26D1" / "checkpoint_final.pt",
+        Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D2_256/checkpoint_final.pt"),
+        Path("/content/kiara/checkpoints/stage_26D2_256/checkpoint_final.pt"),
+        REPO_ROOT / "checkpoints" / "stage_26D2_256" / "checkpoint_final.pt",
+        Path("/content/drive/MyDrive/kiara_checkpoints/checkpoint_final.pt"),
+        Path("/content/kiara/checkpoints/stage_26C/checkpoint_final.pt"),
         REPO_ROOT / "checkpoints" / "stage_26C" / "checkpoint_final.pt",
     ]
     ckpt_p = None
@@ -319,6 +338,7 @@ if __name__ == "__main__":
 
     run_instruction_finetuning(
         base_checkpoint=ckpt_p,
+        output_dir=args.output_dir,
         steps=args.steps,
         batch_size=args.batch_size,
         lr=args.lr,
