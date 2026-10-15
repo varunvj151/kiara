@@ -224,6 +224,15 @@
           <span class="setting-hint">Filters to top K highest probability candidate tokens.</span>
         </div>
 
+        <div class="setting-item">
+          <div class="slider-header">
+            <label for="repSlider">Repetition Penalty</label>
+            <span class="slider-val" id="repVal">1.15</span>
+          </div>
+          <input type="range" id="repSlider" min="1.0" max="1.5" step="0.05" value="1.15" class="form-range">
+          <span class="setting-hint">Prevents model from repeating phrases or looping.</span>
+        </div>
+
         <div class="setting-item toggle-item">
           <div>
             <label for="instructToggle" style="margin: 0; cursor: pointer;">Instruction Format (ChatML)</label>

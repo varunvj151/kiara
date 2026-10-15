@@ -222,6 +222,8 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             top_k = int(data.get("top_k", 40))
             instruct = bool(data.get("instruct", True))
 
+            repetition_penalty = float(data.get("repetition_penalty", 1.15))
+
             if not prompt:
                 self.send_response(HTTPStatus.BAD_REQUEST)
                 self.end_headers()
@@ -262,7 +264,15 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                         use_cache=True,
                     )
                     past_key_values = outputs.past_key_values
-                    next_token_logits = outputs.logits[:, -1, :]
+                    next_token_logits = outputs.logits[:, -1, :].clone()
+
+                    # Apply repetition penalty to prevent degenerating loops
+                    if repetition_penalty != 1.0 and generated.size(-1) > len(input_ids):
+                        for tid in set(generated[0, len(input_ids):].tolist()):
+                            if next_token_logits[0, tid] > 0:
+                                next_token_logits[0, tid] /= repetition_penalty
+                            else:
+                                next_token_logits[0, tid] *= repetition_penalty
 
                     if temperature > 0:
                         next_token_logits = next_token_logits / temperature

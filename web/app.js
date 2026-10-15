@@ -24,6 +24,7 @@
       temperature: 0.7,
       maxTokens: 100,
       topK: 40,
+      repetitionPenalty: 1.15,
       instruct: true,
       activeCheckpoint: '',
     },
@@ -71,6 +72,8 @@
     tokensVal: document.getElementById('tokensVal'),
     topkSlider: document.getElementById('topkSlider'),
     topkVal: document.getElementById('topkVal'),
+    repSlider: document.getElementById('repSlider'),
+    repVal: document.getElementById('repVal'),
     instructToggle: document.getElementById('instructToggle'),
     clearChatBtn: document.getElementById('clearChatBtn'),
   };
@@ -417,6 +420,7 @@
           max_tokens: state.settings.maxTokens,
           temperature: state.settings.temperature,
           top_k: state.settings.topK,
+          repetition_penalty: state.settings.repetitionPenalty,
           instruct: state.settings.instruct,
         }),
         signal: state.abortController.signal,
@@ -598,6 +602,11 @@
     el.topkSlider.value = state.settings.topK;
     el.topkVal.textContent = state.settings.topK;
 
+    if (el.repSlider) {
+      el.repSlider.value = state.settings.repetitionPenalty;
+      el.repVal.textContent = state.settings.repetitionPenalty;
+    }
+
     el.instructToggle.checked = state.settings.instruct;
     if (state.settings.instruct) {
       el.instructPill.classList.add('active');
@@ -686,6 +695,14 @@
       el.topkVal.textContent = state.settings.topK;
       persistState();
     });
+
+    if (el.repSlider) {
+      el.repSlider.addEventListener('input', (e) => {
+        state.settings.repetitionPenalty = parseFloat(e.target.value);
+        el.repVal.textContent = state.settings.repetitionPenalty;
+        persistState();
+      });
+    }
 
     el.instructToggle.addEventListener('change', (e) => {
       state.settings.instruct = e.target.checked;
