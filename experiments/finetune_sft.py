@@ -166,6 +166,9 @@ def run_instruction_finetuning(
             max_position_embeddings=512, tie_word_embeddings=True
         )
 
+    if config.max_position_embeddings < seq_len:
+        config.max_position_embeddings = seq_len
+
     model = KiaraForCausalLM(config)
     print(f"Loading base weights from {base_checkpoint}...")
     load_checkpoint(base_checkpoint, model=model)
