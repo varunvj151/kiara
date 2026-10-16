@@ -28,7 +28,7 @@
       topK: 40,
       repetitionPenalty: 1.15,
       instruct: true,
-      webSearch: false,
+      webSearch: null,   // null = autonomous (Kiara decides), true = force ON, false = force OFF
       ttsEnabled: false,
       activeCheckpoint: '',
     },
@@ -104,7 +104,13 @@
       }
       const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (savedSettings) {
-        state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+        const parsed = JSON.parse(savedSettings);
+        // Migrate legacy boolean webSearch to null (autonomous mode) if from v1
+        if (!parsed.v2_agent) {
+          parsed.webSearch = null;
+          parsed.v2_agent = true;
+        }
+        state.settings = { ...state.settings, ...parsed };
       }
     } catch (e) {
       console.warn('Failed to parse localStorage:', e);
@@ -122,7 +128,7 @@
     try {
       localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(state.sessions));
       localStorage.setItem(STORAGE_KEYS.CURRENT_ID, state.currentSessionId);
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify({ ...state.settings, v2_agent: true }));
     } catch (e) {
       console.warn('Failed to persist localStorage:', e);
     }
@@ -486,7 +492,8 @@
           top_k: state.settings.topK,
           repetition_penalty: state.settings.repetitionPenalty,
           instruct: state.settings.instruct,
-          web_search: !!state.settings.webSearch,
+          // null = autonomous mode (Kiara decides), true/false = user override
+          web_search: state.settings.webSearch,
         }),
         signal: state.abortController.signal,
       });
@@ -533,8 +540,25 @@
               const statusEl = bubbleEl.querySelector('.status-stream-badge');
               if (statusEl && statusEl.querySelector('.status-spinner')) {
                 const textSpan = statusEl.querySelector('span:not(.status-spinner)');
-                const cleanTxt = textSpan ? textSpan.textContent.replace('Searching live web for ', 'Searched ').replace('...', '') : 'Web Grounded';
-                statusEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span>${escapeHtml(cleanTxt)}</span>`;
+                const rawTxt = textSpan ? textSpan.textContent : '';
+                let cleanTxt = rawTxt
+                  .replace(/^Searching live web for\s*/i, 'Searched ')
+                  .replace(/^Searching the web:\s*/i, 'Searched ')
+                  .replace(/^Reading webpage:\s*/i, 'Read ')
+                  .replace(/^Calculating:\s*/i, 'Calculated ')
+                  .replace(/^Running code:\s*/i, 'Executed ')
+                  .replace(/\.{2,}$/, '');
+                if (!cleanTxt) cleanTxt = 'Verified with Tools';
+
+                let iconSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+                if (/read|http/i.test(rawTxt)) {
+                  iconSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+                } else if (/calc/i.test(rawTxt)) {
+                  iconSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>';
+                } else if (/code/i.test(rawTxt)) {
+                  iconSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+                }
+                statusEl.innerHTML = `${iconSvg} <span>${escapeHtml(cleanTxt)}</span>`;
               }
               const statusPrefix = statusEl ? statusEl.outerHTML : '';
               bubbleEl.innerHTML = statusPrefix + renderMarkdown(assistantMsg.content) + '<span class="cursor-blink"></span>';
@@ -547,6 +571,13 @@
                 elapsed: data.elapsed_sec,
                 tokPerSec: data.tok_per_sec,
               };
+              // Store sources for citation display
+              if (data.sources && data.sources.length > 0) {
+                assistantMsg.sources = data.sources;
+              }
+              if (data.tools_used && data.tools_used.length > 0) {
+                assistantMsg.toolsUsed = data.tools_used;
+              }
             }
           } catch (err) {
             console.error('Error parsing SSE data chunk:', err);
@@ -573,11 +604,27 @@
         const wrapper = astNode.querySelector('.message-content-wrapper');
         const footer = document.createElement('div');
         footer.className = 'message-meta-footer';
-        footer.innerHTML = `
+        let footerHTML = `
           <span class="meta-pill">⚡ ${assistantMsg.metrics.tokPerSec || 0} tok/s</span>
           <span class="meta-pill">🔢 ${assistantMsg.metrics.tokens || 0} tokens</span>
           <span class="meta-pill">⏱️ ${assistantMsg.metrics.elapsed || 0}s</span>
         `;
+        // Show which tools were used
+        if (assistantMsg.toolsUsed && assistantMsg.toolsUsed.length > 0) {
+          const toolIcons = { web_search: '🔍', open_url: '🌐', calculator: '🧮', code_execution: '⚙️' };
+          const toolLabels = assistantMsg.toolsUsed.map(t => toolIcons[t] ? `${toolIcons[t]} ${t}` : t);
+          footerHTML += `<span class="meta-pill tools-pill" title="Tools used: ${toolLabels.join(', ')}">${toolLabels.join(' · ')}</span>`;
+        }
+        // Show sources
+        if (assistantMsg.sources && assistantMsg.sources.length > 0) {
+          assistantMsg.sources.slice(0, 2).forEach(src => {
+            try {
+              const domain = new URL(src).hostname;
+              footerHTML += `<a class="meta-pill source-pill" href="${escapeHtml(src)}" target="_blank" rel="noopener">🔗 ${escapeHtml(domain)}</a>`;
+            } catch(e) {}
+          });
+        }
+        footer.innerHTML = footerHTML;
         wrapper.appendChild(footer);
       }
 
@@ -723,10 +770,19 @@
     }
 
     if (el.webSearchToggle) {
-      if (state.settings.webSearch) {
+      // 3 states: null=auto (globe pulsing), true=force on (active), false=force off (muted)
+      el.webSearchToggle.classList.remove('active', 'search-forced-off');
+      if (state.settings.webSearch === true) {
         el.webSearchToggle.classList.add('active');
+        el.webSearchToggle.title = 'Web search: Forced ON (click to force OFF)';
+        el.webSearchToggle.querySelector('span') && (el.webSearchToggle.querySelector('span').textContent = 'Search ON');
+      } else if (state.settings.webSearch === false) {
+        el.webSearchToggle.classList.add('search-forced-off');
+        el.webSearchToggle.title = 'Web search: Forced OFF (click to reset to Auto)';
+        el.webSearchToggle.querySelector('span') && (el.webSearchToggle.querySelector('span').textContent = 'Search OFF');
       } else {
-        el.webSearchToggle.classList.remove('active');
+        el.webSearchToggle.title = 'Web search: Auto (Kiara decides) — click to force ON';
+        el.webSearchToggle.querySelector('span') && (el.webSearchToggle.querySelector('span').textContent = 'Auto');
       }
     }
 
@@ -912,10 +968,16 @@
     // Checkpoint Switcher
     el.checkpointSelect.addEventListener('change', handleSwitchCheckpoint);
 
-    // Superpower: Web Search Toggle Pill
+    // Web Search Toggle: now a 3-state cycle: auto → force ON → force OFF
     if (el.webSearchToggle) {
       el.webSearchToggle.addEventListener('click', () => {
-        state.settings.webSearch = !state.settings.webSearch;
+        if (state.settings.webSearch === null) {
+          state.settings.webSearch = true;   // null → true (force search)
+        } else if (state.settings.webSearch === true) {
+          state.settings.webSearch = false;  // true → false (no search)
+        } else {
+          state.settings.webSearch = null;   // false → null (autonomous)
+        }
         syncSettingsUI();
         persistState();
       });

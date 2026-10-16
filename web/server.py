@@ -42,7 +42,8 @@ torch.set_num_threads(4)
 from kiara.model import KiaraConfig, KiaraForCausalLM
 from kiara.tokenizer import KiaraTokenizer
 from kiara.trainer import load_checkpoint
-from kiara.tools import get_web_grounding_context, execute_python_code
+from kiara.tools import execute_python_code
+from kiara.tools.agent_engine import run_agentic_loop
 
 STATIC_DIR = Path(__file__).resolve().parent
 
@@ -265,8 +266,9 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(res).encode("utf-8"))
             return
-
-        # Streaming Chat Generation endpoint
+        # ══════════════════════════════════════════════════════════════════
+        # Streaming Chat Generation (Autonomous Agentic Mode)
+        # ══════════════════════════════════════════════════════════════════
         if parsed.path == "/api/chat":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length).decode("utf-8")
@@ -281,24 +283,45 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             temperature = float(data.get("temperature", 0.7))
             top_k = int(data.get("top_k", 40))
             instruct = bool(data.get("instruct", True))
-            web_search = bool(data.get("web_search", False))
             repetition_penalty = float(data.get("repetition_penalty", 1.15))
+
+            # web_search from frontend: None = fully autonomous (default)
+            # True  = user explicitly wants search
+            # False = user explicitly wants no search
+            web_search_raw = data.get("web_search", None)
+            if web_search_raw is None:
+                user_hint_search = None   # autonomous
+            else:
+                user_hint_search = bool(web_search_raw)
 
             if not prompt:
                 self.send_response(HTTPStatus.BAD_REQUEST)
                 self.end_headers()
                 return
 
-            # Live Web Grounding & Scraper
-            web_context, status_msg = get_web_grounding_context(prompt, enable_search=web_search)
+            # ── Step 1: Autonomous tool-use loop ─────────────────────────────
+            # Kiara decides which tools to use based on the prompt.
+            # user_hint_search=None means fully autonomous mode.
+            agent = run_agentic_loop(
+                prompt=prompt,
+                conversation_history=messages,
+                user_hint_search=user_hint_search,
+                tool_budget=4,
+            )
 
-            # Detect if tokenizer supports ChatML tokens (<|im_start|>)
+            # ── Step 2: Build grounded prompt ────────────────────────────────
             is_chatml = CURRENT_TOKENIZER.token_to_id("<|im_start|>") is not None
 
             if is_chatml:
-                turns = ["<|im_start|>system\nYou are Kiara, an intelligent and helpful AI reasoning assistant.<|im_end|>\n"]
+                system_prompt = (
+                    "You are Kiara, a helpful and accurate AI assistant. "
+                    "Answer concisely and factually. "
+                    "If search results or tool outputs are provided, base your answer on them. "
+                    "Do NOT invent facts, URLs, or citations."
+                )
+                turns = [f"<|im_start|>system\n{system_prompt}<|im_end|>\n"]
 
-                # Multi-turn chat history continuity
+                # Multi-turn history (last 6 exchanges)
                 if messages and isinstance(messages, list):
                     for m in messages[-6:]:
                         role = m.get("role", "user")
@@ -306,12 +329,12 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                         if content and role in ("user", "assistant"):
                             turns.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
 
-                # Grounded current user prompt
-                if web_context:
+                # Grounded current user turn
+                if agent.grounding_context:
                     current_content = (
-                        f"Web Search Results:\n{web_context}\n\n"
-                        f"Question: {prompt}\n"
-                        f"Answer directly based on the search results above:"
+                        f"[Tool Results]\n{agent.grounding_context}\n"
+                        f"[User Question] {prompt}\n"
+                        f"[Answer based on the tool results above]"
                     )
                 else:
                     current_content = prompt
@@ -328,13 +351,17 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                         if content:
                             history_str += f"### {role_tag}:\n{content}\n\n"
 
-                if web_context:
-                    formatted_prompt = f"{history_str}### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
+                if agent.grounding_context:
+                    formatted_prompt = (
+                        f"{history_str}### Research Context:\n{agent.grounding_context}\n\n"
+                        f"### Instruction:\n{prompt}\n\n### Response:\n"
+                    )
                 elif instruct:
                     formatted_prompt = f"{history_str}### Instruction:\n{prompt}\n\n### Response:\n"
                 else:
                     formatted_prompt = f"{history_str}{prompt}"
 
+            # ── Step 3: Open SSE stream ───────────────────────────────────────
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
@@ -342,16 +369,18 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
 
-            # Emit initial web search status if active
-            if status_msg:
-                status_payload = json.dumps({"token": "", "status": status_msg, "done": False})
+            def _sse(payload: dict):
                 try:
-                    self.wfile.write(f"data: {status_payload}\n\n".encode("utf-8"))
+                    self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode("utf-8"))
                     self.wfile.flush()
                 except Exception:
                     pass
 
-            # Autoregressive Streaming Generation
+            # Stream each tool status step
+            for step in agent.status_steps:
+                _sse({"token": "", "status": step, "done": False})
+
+            # ── Step 4: Autoregressive streaming generation ───────────────────
             input_ids = CURRENT_TOKENIZER.encode(formatted_prompt, bos=not is_chatml)
 
             # Context window boundary protection
@@ -387,7 +416,7 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     past_key_values = outputs.past_key_values
                     next_token_logits = outputs.logits[:, -1, :].clone()
 
-                    # Apply repetition penalty to prevent degenerating loops
+                    # Repetition penalty
                     if repetition_penalty != 1.0 and generated.size(-1) > len(input_ids):
                         for tid in set(generated[0, len(input_ids):].tolist()):
                             if next_token_logits[0, tid] > 0:
@@ -409,12 +438,16 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     generated = torch.cat((generated, next_tok), dim=-1)
                     tokens_generated += 1
 
-                    # Cumulative delta decoding prevents multi-byte UTF-8 byte fragmentation
+                    # Cumulative delta decoding (avoids UTF-8 byte fragmentation)
                     all_gen_ids = generated[0, len(input_ids):].tolist()
                     full_text = CURRENT_TOKENIZER.decode(all_gen_ids, skip_special_tokens=False)
 
                     # Stop conditions
-                    if tok_id in eos_ids or "<|im_end|>" in full_text or "<|endoftext|>" in full_text or "[EOS]" in full_text or "<repo_name>" in full_text:
+                    if (tok_id in eos_ids
+                            or "<|im_end|>" in full_text
+                            or "<|endoftext|>" in full_text
+                            or "[EOS]" in full_text
+                            or "<repo_name>" in full_text):
                         break
                     if "###" in full_text or "<|im_start|>" in full_text or "<file_sep>" in full_text:
                         break
@@ -423,38 +456,39 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     if not delta or "\ufffd" in delta:
                         continue
 
-                    # Filter out any internal special token strings
-                    clean_delta = delta.replace("<|im_end|>", "").replace("<|im_start|>", "").replace("<|endoftext|>", "").replace("<repo_name>", "").replace("<file_sep>", "")
+                    clean_delta = (
+                        delta
+                        .replace("<|im_end|>", "")
+                        .replace("<|im_start|>", "")
+                        .replace("<|endoftext|>", "")
+                        .replace("<repo_name>", "")
+                        .replace("<file_sep>", "")
+                    )
                     if not clean_delta:
                         continue
 
                     prev_text = full_text
-
-                    # Send SSE chunk
-                    chunk_payload = json.dumps({"token": clean_delta, "done": False})
-                    try:
-                        self.wfile.write(f"data: {chunk_payload}\n\n".encode("utf-8"))
-                        self.wfile.flush()
-                    except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-                        print("[Kiara Server] Client disconnected early.")
-                        return
+                    _sse({"token": clean_delta, "done": False})
 
             elapsed = max(0.001, time.time() - t0)
             tok_per_sec = round(tokens_generated / elapsed, 1)
 
-            # Send done event with metrics
-            done_payload = json.dumps({
+            # Fallback: if model produced no tokens, emit a polite message
+            if tokens_generated == 0:
+                fallback = "I'm not sure about that. Could you rephrase or provide more detail?"
+                _sse({"token": fallback, "done": False})
+                tokens_generated = len(fallback.split())
+
+            # Done event includes metrics and sources
+            _sse({
                 "token": "",
                 "done": True,
                 "tokens_generated": tokens_generated,
                 "elapsed_sec": round(elapsed, 2),
                 "tok_per_sec": tok_per_sec,
+                "tools_used": agent.tool_used,
+                "sources": agent.sources,
             })
-            try:
-                self.wfile.write(f"data: {done_payload}\n\n".encode("utf-8"))
-                self.wfile.flush()
-            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-                pass
             self.close_connection = True
             return
 
