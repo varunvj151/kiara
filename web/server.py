@@ -291,16 +291,44 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             # Live Web Grounding & Scraper
             web_context, status_msg = get_web_grounding_context(prompt, enable_search=web_search)
 
-            # Format prompt with web grounding if retrieved
-            if web_context:
-                if instruct:
-                    formatted_prompt = f"### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
+            # Detect if tokenizer supports ChatML tokens (<|im_start|>)
+            is_chatml = CURRENT_TOKENIZER.token_to_id("<|im_start|>") is not None
+
+            if is_chatml:
+                if web_context:
+                    formatted_prompt = (
+                        f"<|im_start|>system\n"
+                        f"You are Kiara, an intelligent and helpful AI assistant. Use the following real-time web research context to answer the user's question accurately:\n"
+                        f"{web_context}\n"
+                        f"<|im_end|>\n"
+                        f"<|im_start|>user\n"
+                        f"{prompt}\n"
+                        f"<|im_end|>\n"
+                        f"<|im_start|>assistant\n"
+                    )
+                elif instruct:
+                    formatted_prompt = (
+                        f"<|im_start|>system\n"
+                        f"You are Kiara, a helpful and precise reasoning assistant.\n"
+                        f"<|im_end|>\n"
+                        f"<|im_start|>user\n"
+                        f"{prompt}\n"
+                        f"<|im_end|>\n"
+                        f"<|im_start|>assistant\n"
+                    )
                 else:
-                    formatted_prompt = f"Context: {web_context}\n\n{prompt}"
-            elif instruct:
-                formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+                    formatted_prompt = prompt
             else:
-                formatted_prompt = prompt
+                # Classic Alpaca template for legacy checkpoints
+                if web_context:
+                    if instruct:
+                        formatted_prompt = f"### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
+                    else:
+                        formatted_prompt = f"Context: {web_context}\n\n{prompt}"
+                elif instruct:
+                    formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+                else:
+                    formatted_prompt = prompt
 
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream")
@@ -319,16 +347,21 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     pass
 
             # Autoregressive Streaming Generation
-            input_ids = CURRENT_TOKENIZER.encode(formatted_prompt, bos=True)
+            input_ids = CURRENT_TOKENIZER.encode(formatted_prompt, bos=not is_chatml)
 
             # Context window boundary protection
-            max_allowed = getattr(CURRENT_CONFIG, "max_position_embeddings", 512) - max_new_tokens - 4
+            max_pos = getattr(CURRENT_CONFIG, "max_position_embeddings", 2048)
+            max_allowed = max_pos - max_new_tokens - 4
             if max_allowed > 16 and len(input_ids) > max_allowed:
                 input_ids = input_ids[:max_allowed]
 
             generated = torch.tensor([input_ids], dtype=torch.long, device=DEVICE)
             past_key_values = None
-            eos_id = CURRENT_TOKENIZER.eos_token_id
+            eos_ids = {CURRENT_TOKENIZER.eos_token_id}
+            for special in ["<|im_end|>", "<|endoftext|>", "[EOS]"]:
+                tid = CURRENT_TOKENIZER.token_to_id(special)
+                if tid is not None:
+                    eos_ids.add(tid)
 
             t0 = time.time()
             tokens_generated = 0
@@ -376,19 +409,24 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     full_text = CURRENT_TOKENIZER.decode(all_gen_ids, skip_special_tokens=False)
 
                     # Stop conditions
-                    if tok_id == eos_id or "[EOS]" in full_text or "<|im_end|>" in full_text:
+                    if tok_id in eos_ids or "<|im_end|>" in full_text or "<|endoftext|>" in full_text or "[EOS]" in full_text:
                         break
-                    if "###" in full_text:
+                    if "###" in full_text or "<|im_start|>" in full_text:
                         break
 
                     delta = full_text[len(prev_text):]
                     if not delta or "\ufffd" in delta:
                         continue
 
+                    # Filter out any internal special token strings
+                    clean_delta = delta.replace("<|im_end|>", "").replace("<|im_start|>", "").replace("<|endoftext|>", "")
+                    if not clean_delta:
+                        continue
+
                     prev_text = full_text
 
                     # Send SSE chunk
-                    chunk_payload = json.dumps({"token": delta, "done": False})
+                    chunk_payload = json.dumps({"token": clean_delta, "done": False})
                     try:
                         self.wfile.write(f"data: {chunk_payload}\n\n".encode("utf-8"))
                         self.wfile.flush()

@@ -60,6 +60,37 @@ def fetch_url_content(url: str, max_chars: int = 1500, timeout: int = 6) -> str:
         return f"[Error accessing {url}: {e}]"
 
 
+def search_duckduckgo(query: str, max_results: int = 4, timeout: int = 6) -> list[dict[str, str]]:
+    """Search DuckDuckGo HTML for real-time live web search snippets and links."""
+    try:
+        url = "https://html.duckduckgo.com/html/"
+        data = urllib.parse.urlencode({"q": query}).encode("utf-8")
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://html.duckduckgo.com/",
+        }
+        req = urllib.request.Request(url, data=data, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        matches = re.findall(r'<a class="result__snippet"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', html, re.DOTALL)
+        results = []
+        for raw_url, snippet_html in matches[:max_results]:
+            clean_s = re.sub(r'<[^>]+>', '', snippet_html).strip()
+            clean_s = re.sub(r'\s+', ' ', clean_s)
+            if clean_s:
+                results.append({
+                    "snippet": clean_s,
+                    "url": raw_url,
+                })
+        return results
+    except Exception as e:
+        print(f"[Kiara Web Agent] DuckDuckGo search notice: {e}")
+        return []
+
+
 def search_wikipedia(query: str, max_results: int = 2, timeout: int = 5) -> list[dict[str, str]]:
     """Search Wikipedia API for high-density factual snippets."""
     try:
@@ -99,14 +130,25 @@ def get_web_grounding_context(prompt: str, enable_search: bool = False) -> tuple
         return context, status
 
     if enable_search:
-        # Strip common prompt filler to form search query
-        clean_query = prompt
-        for prefix in ["who is", "what is", "tell me about", "explain", "search", "search for"]:
+        # Strip common prompt filler to form clean search query
+        clean_query = prompt.strip()
+        for prefix in ["who is", "what is", "tell me about", "explain", "search for", "search", "show me", "can you tell me"]:
             if clean_query.lower().startswith(prefix):
                 clean_query = clean_query[len(prefix):].strip()
                 break
+        clean_query = clean_query.rstrip("?.!")
 
-        status = f"Searching live knowledge for '{clean_query[:40]}...'"
+        status = f"Searching live web for '{clean_query[:35]}...'"
+
+        # First priority: Live Web Search via DuckDuckGo
+        ddg_results = search_duckduckgo(clean_query, max_results=3)
+        if ddg_results:
+            context_lines = ["Live Web Search Results:"]
+            for r in ddg_results:
+                context_lines.append(f"- {r['snippet']} (Source: {r['url']})")
+            return "\n".join(context_lines) + "\n", status
+
+        # Fallback: Wikipedia Encyclopedia API
         wiki_results = search_wikipedia(clean_query, max_results=2)
         if wiki_results:
             context_lines = ["Live Knowledge Base:"]
