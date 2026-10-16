@@ -251,11 +251,14 @@ def _extract_python_code(text: str) -> str:
 # ─── Evaluator Core ───────────────────────────────────────────────────────────
 
 class KiaraEvaluator:
-    def __init__(self, checkpoint_path: Path):
+    def __init__(self, checkpoint_path: Path, device: str | None = None):
         self.checkpoint_path = Path(checkpoint_path)
-        self.device = torch.device("cpu")
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
 
-        print(f"[Evaluator] Loading checkpoint: {self.checkpoint_path}...")
+        print(f"[Evaluator] Loading checkpoint: {self.checkpoint_path} on {self.device}...")
         ckpt_dir = self.checkpoint_path.parent
         if (ckpt_dir / "tokenizer.json").exists():
             self.tokenizer = KiaraTokenizer.load(ckpt_dir)
@@ -272,6 +275,7 @@ class KiaraEvaluator:
         raw = torch.load(self.checkpoint_path, map_location="cpu")
         state_dict = raw.get("model_state_dict", raw.get("model", raw))
         self.model.load_state_dict(state_dict, strict=False)
+        self.model.to(self.device)
         self.model.eval()
 
         self.is_chatml = self.tokenizer.token_to_id("<|im_start|>") is not None
@@ -489,7 +493,7 @@ class KiaraEvaluator:
         acc = (correct / len(TOOL_BENCHMARKS)) * 100.0
         return {"accuracy": acc, "passed": correct, "total": len(TOOL_BENCHMARKS), "details": results}
 
-    def run_full_suite(self) -> dict:
+    def run_full_suite(self, output_path: str | Path | None = None) -> dict:
         t_start = time.time()
         print("\n" + "=" * 80)
         print("  KIARA MULTI-PILLAR BENCHMARK AUDIT")
@@ -536,7 +540,11 @@ class KiaraEvaluator:
             },
         }
 
-        out_file = REPO_ROOT / "experiments" / f"benchmark_{self.checkpoint_path.parent.name}.json"
+        if output_path is not None:
+            out_file = Path(output_path)
+        else:
+            out_file = REPO_ROOT / "experiments" / f"benchmark_{self.checkpoint_path.parent.name}.json"
+        out_file.parent.mkdir(parents=True, exist_ok=True)
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
         print(f"\n[Evaluator] Comprehensive scorecard saved to: {out_file}")
@@ -545,8 +553,15 @@ class KiaraEvaluator:
 
 
 if __name__ == "__main__":
-    ckpt = REPO_ROOT / "checkpoints" / "kiara_135m_instruct" / "checkpoint_final.pt"
-    if len(sys.argv) > 1:
-        ckpt = Path(sys.argv[1])
-    evaluator = KiaraEvaluator(ckpt)
-    evaluator.run_full_suite()
+    import argparse
+    parser = argparse.ArgumentParser(description="Kiara Comprehensive Evaluation Suite")
+    parser.add_argument("pos_checkpoint", nargs="?", default=None, help="Optional positional checkpoint path")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint")
+    parser.add_argument("--output", type=str, default=None, help="Path to write JSON scorecard output")
+    parser.add_argument("--device", type=str, default=None, help="Device to run on (e.g. cpu or cuda)")
+    args = parser.parse_args()
+
+    ckpt_candidate = args.checkpoint or args.pos_checkpoint or str(REPO_ROOT / "checkpoints" / "kiara_135m_instruct" / "checkpoint_final.pt")
+    ckpt = Path(ckpt_candidate)
+    evaluator = KiaraEvaluator(ckpt, device=args.device)
+    evaluator.run_full_suite(output_path=args.output)

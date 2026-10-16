@@ -175,8 +175,22 @@ def run_instruction_finetuning(
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    scaler = torch.cuda.amp.GradScaler(enabled=use_cuda)
+    if hasattr(torch.amp, "GradScaler"):
+        scaler = torch.amp.GradScaler("cuda", enabled=use_cuda)
+    else:
+        scaler = torch.cuda.amp.GradScaler(enabled=use_cuda)
     print(f"  Device: {device} | Mixed Precision (AMP): {use_cuda}\n")
+
+    if not use_cuda:
+        print("!" * 90)
+        print("  ⚠️  WARNING: NO GPU DETECTED (RUNNING ON CPU)!")
+        print("  Training on CPU will be extremely slow (~4 to 6 hours for 2,000 steps).")
+        print("  If you are running in Google Colab, enable free GPU acceleration:")
+        print("    1. Click 'Runtime' in the top menu bar")
+        print("    2. Click 'Change runtime type'")
+        print("    3. Under 'Hardware accelerator', select 'T4 GPU'")
+        print("    4. Click 'Save', then re-run this training cell to train in ~12 minutes!")
+        print("!" * 90 + "\n")
 
     if (base_checkpoint.parent / "tokenizer.json").exists():
         tokenizer = KiaraTokenizer.load(base_checkpoint.parent)
