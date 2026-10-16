@@ -31,6 +31,7 @@ torch.set_num_threads(4)
 from kiara.model import KiaraConfig, KiaraForCausalLM
 from kiara.tokenizer import KiaraTokenizer
 from kiara.trainer import load_checkpoint
+from kiara.tools import get_web_grounding_context, execute_python_code
 
 STATIC_DIR = Path(__file__).resolve().parent
 
@@ -48,7 +49,7 @@ mimetypes.add_type("text/css", ".css")
 mimetypes.add_type("text/html", ".html")
 mimetypes.add_type("application/json", ".json")
 
-def find_available_checkpoints() -> list[dict[str, str]]:
+def find_available_checkpoints() -> list[dict[str, Any]]:
     """Scan local checkpoints directory and Google Drive (if present)."""
     ckpts = []
     ckpt_root = REPO_ROOT / "checkpoints"
@@ -62,17 +63,43 @@ def find_available_checkpoints() -> list[dict[str, str]]:
     for d in search_dirs:
         if d.exists():
             for pt in d.rglob("*.pt"):
-                # Only include checkpoint_final or steps to avoid clutter
                 rel_name = f"{pt.parent.name}/{pt.name}"
                 if str(pt) not in seen:
                     seen.add(str(pt))
+                    # Curate friendly display tier
+                    norm_name = rel_name.lower().replace("\\", "/")
+                    if "135m_instruct" in norm_name:
+                        display_name = "🌟 Kiara 135M Instruct (Flagship Foundation Model)"
+                        priority = 0
+                    elif "135m" in norm_name:
+                        display_name = "🚀 Kiara 135M Base (Pretrained Backbone)"
+                        priority = 1
+                    elif "kiara_instruct" in norm_name:
+                        display_name = "⚡ Kiara 40M Instruct (Lightweight Edge)"
+                        priority = 2
+                    elif "stage_26c" in norm_name:
+                        display_name = "⚡ Kiara 40M Base (Stage 26C)"
+                        priority = 3
+                    elif "stage_26d2" in norm_name:
+                        display_name = "🔬 Kiara 40M Context-256 (Stage 26D2)"
+                        priority = 4
+                    elif "stage_26d1" in norm_name:
+                        display_name = "🔬 Kiara 125M (Stage 26D1)"
+                        priority = 5
+                    else:
+                        display_name = f"🧪 {rel_name} [Experimental]"
+                        priority = 6
+
                     ckpts.append({
                         "name": rel_name,
+                        "display_name": display_name,
+                        "priority": priority,
                         "path": str(pt),
                         "size_mb": round(pt.stat().st_size / (1024 * 1024), 1),
                     })
-    # Sort with 'final' first, then newer stages
-    ckpts.sort(key=lambda x: (0 if "final" in x["name"] else 1, x["name"]), reverse=False)
+
+    # Prioritize Flagship 135M first, followed by clean order
+    ckpts.sort(key=lambda x: (x["priority"], x["name"]))
     return ckpts
 
 
@@ -106,23 +133,24 @@ def load_kiara_model(ckpt_path: Path):
 
     CURRENT_CONFIG = config
     model = KiaraForCausalLM(config)
-    model.load_state_dict(raw["model_state_dict"])
+    model.load_state_dict(raw["model_state_dict"], strict=False)
     model.to(DEVICE)
     model.eval()
 
     CURRENT_MODEL = model
     CURRENT_CKPT_PATH = ckpt_path
     params = sum(p.numel() for p in model.parameters())
-    print(f"[Kiara Server] Model online! Parameters: {params:,} | Device: {DEVICE}")
+    print(f"[Kiara Server] Model online! Parameters: {params:,} | Vocab: {len(CURRENT_TOKENIZER):,} | Device: {DEVICE}")
 
 
 def init_default_model():
-    # Pick best available checkpoint
+    # Pick best available checkpoint (Kiara 135M Flagship prioritized first)
     ckpts = find_available_checkpoints()
     preferred = [
+        "kiara_135m_instruct/checkpoint_final.pt",
+        "kiara_135m_instruct/checkpoint_final (1).pt",
+        "kiara_135m/checkpoint_final.pt",
         "kiara_instruct/checkpoint_final.pt",
-        "stage_26D2_256/checkpoint_final.pt",
-        "stage_26D1/checkpoint_final.pt",
         "stage_26C/checkpoint_final.pt",
     ]
 
@@ -210,6 +238,23 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": f"File not found: {ckpt_path}"}).encode("utf-8"))
             return
 
+        # Isolated Python Code Execution Sandbox
+        if parsed.path == "/api/execute":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length).decode("utf-8")
+            try:
+                data = json.loads(body)
+            except Exception:
+                data = {}
+            code = data.get("code", "")
+            res = execute_python_code(code)
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
         # Streaming Chat Generation endpoint
         if parsed.path == "/api/chat":
             content_length = int(self.headers.get("Content-Length", 0))
@@ -220,11 +265,11 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                 data = {}
 
             prompt = data.get("prompt", "").strip()
-            max_new_tokens = int(data.get("max_tokens", 80))
+            max_new_tokens = int(data.get("max_tokens", 100))
             temperature = float(data.get("temperature", 0.7))
             top_k = int(data.get("top_k", 40))
             instruct = bool(data.get("instruct", True))
-
+            web_search = bool(data.get("web_search", False))
             repetition_penalty = float(data.get("repetition_penalty", 1.15))
 
             if not prompt:
@@ -232,8 +277,16 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 return
 
-            # Format prompt
-            if instruct:
+            # Live Web Grounding & Scraper
+            web_context, status_msg = get_web_grounding_context(prompt, enable_search=web_search)
+
+            # Format prompt with web grounding if retrieved
+            if web_context:
+                if instruct:
+                    formatted_prompt = f"### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
+                else:
+                    formatted_prompt = f"Context: {web_context}\n\n{prompt}"
+            elif instruct:
                 formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
             else:
                 formatted_prompt = prompt
@@ -245,8 +298,23 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
 
+            # Emit initial web search status if active
+            if status_msg:
+                status_payload = json.dumps({"token": "", "status": status_msg, "done": False})
+                try:
+                    self.wfile.write(f"data: {status_payload}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                except Exception:
+                    pass
+
             # Autoregressive Streaming Generation
             input_ids = CURRENT_TOKENIZER.encode(formatted_prompt, bos=True)
+
+            # Context window boundary protection
+            max_allowed = getattr(CURRENT_CONFIG, "max_position_embeddings", 512) - max_new_tokens - 4
+            if max_allowed > 16 and len(input_ids) > max_allowed:
+                input_ids = input_ids[:max_allowed]
+
             generated = torch.tensor([input_ids], dtype=torch.long, device=DEVICE)
             past_key_values = None
             eos_id = CURRENT_TOKENIZER.eos_token_id

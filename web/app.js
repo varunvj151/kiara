@@ -20,12 +20,16 @@
     isGenerating: false,
     abortController: null,
     modelStatus: null,
+    speechRecognition: null,
+    isListening: false,
     settings: {
-      temperature: 0.7,
-      maxTokens: 100,
+      temperature: 0.3,
+      maxTokens: 150,
       topK: 40,
       repetitionPenalty: 1.15,
       instruct: true,
+      webSearch: false,
+      ttsEnabled: false,
       activeCheckpoint: '',
     },
   };
@@ -58,6 +62,9 @@
     tempPill: document.getElementById('tempPill'),
     tokensPill: document.getElementById('tokensPill'),
     instructPill: document.getElementById('instructPill'),
+    webSearchToggle: document.getElementById('webSearchToggle'),
+    voiceBtn: document.getElementById('voiceBtn'),
+    ttsToggleBtn: document.getElementById('ttsToggleBtn'),
 
     // Settings Drawer
     settingsTriggerBtn: document.getElementById('settingsTriggerBtn'),
@@ -231,16 +238,28 @@
     for (let i = 0; i < codeBlocks.length; i++) {
       const { lang, code } = codeBlocks[i];
       const escapedCode = escapeHtml(code);
+      const isPython = lang.toLowerCase() === 'python' || lang.toLowerCase() === 'py';
+      const runBtnHtml = isPython
+        ? `<button class="run-code-btn" type="button" onclick="window.kiaraRunCode(this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Run</span>
+          </button>`
+        : '';
+
       const codeBlockMarkup = `
-        <div class="code-block-container">
+        <div class="code-block-container" data-lang="${escapeHtml(lang)}">
           <div class="code-block-header">
             <span>${lang}</span>
-            <button class="copy-code-btn" type="button" onclick="window.kiaraCopyCode(this)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span>Copy</span>
-            </button>
+            <div class="code-header-actions">
+              ${runBtnHtml}
+              <button class="copy-code-btn" type="button" onclick="window.kiaraCopyCode(this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Copy</span>
+              </button>
+            </div>
           </div>
           <pre class="code-block-pre"><code>${escapedCode}</code></pre>
+          <div class="code-execution-output" style="display:none;"></div>
         </div>
       `;
       formattedHtml = formattedHtml.replace('__CODE_BLOCK_' + i + '__', codeBlockMarkup);
@@ -248,6 +267,45 @@
 
     return formattedHtml;
   }
+
+  // Global helper for Python sandbox execution
+  window.kiaraRunCode = async (btn) => {
+    const container = btn.closest('.code-block-container');
+    if (!container) return;
+    const pre = container.querySelector('code');
+    const outputEl = container.querySelector('.code-execution-output');
+    if (!pre || !outputEl) return;
+
+    const rawCode = pre.innerText;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>Running...</span>';
+    outputEl.style.display = 'block';
+    outputEl.className = 'code-execution-output';
+    outputEl.textContent = '⚡ Running in Python sandbox...';
+
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: rawCode })
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        outputEl.className = 'code-execution-output';
+        outputEl.textContent = data.output || '(Execution completed with no printed output)';
+      } else {
+        outputEl.className = 'code-execution-output error';
+        outputEl.textContent = 'Error: ' + (data.error || 'Execution failed') + (data.output ? '\n' + data.output : '');
+      }
+    } catch (err) {
+      outputEl.className = 'code-execution-output error';
+      outputEl.textContent = 'Sandbox Request Error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalContent;
+    }
+  };
 
   // Global helper for code block copy buttons
   window.kiaraCopyCode = (btn) => {
@@ -422,6 +480,7 @@
           top_k: state.settings.topK,
           repetition_penalty: state.settings.repetitionPenalty,
           instruct: state.settings.instruct,
+          web_search: !!state.settings.webSearch,
         }),
         signal: state.abortController.signal,
       });
@@ -452,9 +511,22 @@
           try {
             const data = JSON.parse(jsonStr);
 
+            if (data.status) {
+              let statusBadge = bubbleEl.querySelector('.status-stream-badge');
+              if (!statusBadge) {
+                statusBadge = document.createElement('div');
+                statusBadge.className = 'status-stream-badge';
+                bubbleEl.prepend(statusBadge);
+              }
+              statusBadge.innerHTML = `<span class="status-spinner"></span><span>${escapeHtml(data.status)}</span>`;
+              scrollToBottom();
+            }
+
             if (data.token) {
               assistantMsg.content += data.token;
-              bubbleEl.innerHTML = renderMarkdown(assistantMsg.content) + '<span class="cursor-blink"></span>';
+              const statusEl = bubbleEl.querySelector('.status-stream-badge');
+              const statusPrefix = statusEl ? statusEl.outerHTML : '';
+              bubbleEl.innerHTML = statusPrefix + renderMarkdown(assistantMsg.content) + '<span class="cursor-blink"></span>';
               scrollToBottom();
             }
 
@@ -472,7 +544,14 @@
       }
 
       // Finalize message rendering without cursor
-      bubbleEl.innerHTML = renderMarkdown(assistantMsg.content);
+      const statusEl = bubbleEl.querySelector('.status-stream-badge');
+      const statusPrefix = statusEl ? statusEl.outerHTML : '';
+      bubbleEl.innerHTML = statusPrefix + renderMarkdown(assistantMsg.content);
+
+      // Trigger TTS if enabled
+      if (state.settings.ttsEnabled && assistantMsg.content) {
+        speakText(assistantMsg.content);
+      }
 
       if (assistantMsg.metrics) {
         const wrapper = astNode.querySelector('.message-content-wrapper');
@@ -548,7 +627,8 @@
         data.available_checkpoints.forEach(ckpt => {
           const opt = document.createElement('option');
           opt.value = ckpt.path;
-          opt.textContent = `${ckpt.name} (${ckpt.size_mb} MB)`;
+          const label = ckpt.display_name ? `${ckpt.display_name} (${ckpt.size_mb} MB)` : `${ckpt.name} (${ckpt.size_mb} MB)`;
+          opt.textContent = label;
           const ckptNorm = (ckpt.path || '').replace(/\\/g, '/').toLowerCase();
           if (currentNorm && currentNorm === ckptNorm) {
             opt.selected = true;
@@ -613,6 +693,89 @@
     } else {
       el.instructPill.classList.remove('active');
     }
+
+    if (el.webSearchToggle) {
+      if (state.settings.webSearch) {
+        el.webSearchToggle.classList.add('active');
+      } else {
+        el.webSearchToggle.classList.remove('active');
+      }
+    }
+
+    if (el.ttsToggleBtn) {
+      if (state.settings.ttsEnabled) {
+        el.ttsToggleBtn.classList.add('tts-active');
+      } else {
+        el.ttsToggleBtn.classList.remove('tts-active');
+      }
+    }
+  }
+
+  // --- Speech & Voice Helpers ---
+  function speakText(text) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+
+    const clean = text
+      .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/[*_~#]/g, '')
+      .replace(/https?:\/\/\S+/g, 'link');
+
+    if (!clean.trim()) return;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Neural') || v.name.includes('Samantha')));
+    if (naturalVoice) utterance.voice = naturalVoice;
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function setupSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      if (el.voiceBtn) {
+        el.voiceBtn.title = 'Speech recognition not supported in this browser';
+        el.voiceBtn.style.opacity = '0.5';
+      }
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      state.isListening = true;
+      if (el.voiceBtn) el.voiceBtn.classList.add('recording');
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      el.promptInput.value = transcript;
+      resizeTextarea();
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('Speech recognition warning:', event.error);
+      state.isListening = false;
+      if (el.voiceBtn) el.voiceBtn.classList.remove('recording');
+    };
+
+    recognition.onend = () => {
+      state.isListening = false;
+      if (el.voiceBtn) el.voiceBtn.classList.remove('recording');
+    };
+
+    state.speechRecognition = recognition;
   }
 
   // --- Event Listeners Setup ---
@@ -717,6 +880,49 @@
     // Checkpoint Switcher
     el.checkpointSelect.addEventListener('change', handleSwitchCheckpoint);
 
+    // Superpower: Web Search Toggle Pill
+    if (el.webSearchToggle) {
+      el.webSearchToggle.addEventListener('click', () => {
+        state.settings.webSearch = !state.settings.webSearch;
+        syncSettingsUI();
+        persistState();
+      });
+    }
+
+    // Superpower: Voice Input Button
+    if (el.voiceBtn) {
+      el.voiceBtn.addEventListener('click', () => {
+        if (!state.speechRecognition) {
+          setupSpeechRecognition();
+        }
+        if (!state.speechRecognition) {
+          alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
+          return;
+        }
+        if (state.isListening) {
+          state.speechRecognition.stop();
+        } else {
+          try {
+            state.speechRecognition.start();
+          } catch (e) {
+            console.warn('Recognition start error:', e);
+          }
+        }
+      });
+    }
+
+    // Superpower: Voice Output (TTS) Toggle
+    if (el.ttsToggleBtn) {
+      el.ttsToggleBtn.addEventListener('click', () => {
+        state.settings.ttsEnabled = !state.settings.ttsEnabled;
+        if (!state.settings.ttsEnabled && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        syncSettingsUI();
+        persistState();
+      });
+    }
+
     // Clear History Button
     el.clearChatBtn.addEventListener('click', () => {
       if (confirm('Clear all conversation history? This cannot be undone.')) {
@@ -735,6 +941,7 @@
     renderSidebarHistory();
     renderCurrentConversation();
     setupEventListeners();
+    setupSpeechRecognition();
     fetchServerStatus();
   }
 

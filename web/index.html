@@ -73,8 +73,11 @@
         <div class="topbar-right">
           <div class="active-badge" id="activeBadge">
             <span class="active-indicator"></span>
-            <span class="active-label" id="activeLabel">Kiara-Instruct</span>
+            <span class="active-label" id="activeLabel">Kiara-135M</span>
           </div>
+          <button class="icon-btn" id="ttsToggleBtn" title="Toggle Voice Responses (TTS)" aria-label="Toggle Voice Responses">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </button>
           <button class="icon-btn" id="topSettingsBtn" title="Settings" aria-label="Settings">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
@@ -91,17 +94,37 @@
           </div>
           <h2 class="hero-heading">What can we build today?</h2>
           <p class="hero-subtitle">
-            Kiara is an open, reasoning-first AI foundation model built from first principles with GQA attention, RoPE positional encoding, and Byte-BPE tokenization.
+            Kiara is an autonomous foundation model equipped with live web browsing, Python execution sandbox, and 134.5M reasoning weights.
           </p>
 
           <div class="starter-grid">
-            <button class="starter-card" data-prompt="Write a Python function to check if a number is prime.">
+            <button class="starter-card" data-prompt="What are the key concepts of quantum computing?">
+              <div class="card-icon math-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Live Web Research</div>
+                <div class="card-desc">Ground questions in live web knowledge.</div>
+              </div>
+            </button>
+
+            <button class="starter-card" data-prompt="Write a Python script to compute the Fibonacci sequence up to 100.">
               <div class="card-icon code-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
               </div>
               <div class="card-content">
-                <div class="card-title">Python Function</div>
-                <div class="card-desc">Check if a number is prime with optimized loop.</div>
+                <div class="card-title">Python Code Sandbox</div>
+                <div class="card-desc">Write and run code directly in the browser.</div>
+              </div>
+            </button>
+
+            <button class="starter-card" data-prompt="Solve this step by step: A store sells apples for 2 dollars each and oranges for 3 dollars each. If Sarah buys 4 apples and 5 oranges, how much does she spend?">
+              <div class="card-icon general-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="card-content">
+                <div class="card-title">Multi-Step Arithmetic</div>
+                <div class="card-desc">Step-by-step mathematical reasoning.</div>
               </div>
             </button>
 
@@ -110,28 +133,8 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V18a1 1 0 0 1-2 0v-1.07A7 7 0 0 1 5.07 11H4a1 1 0 0 1 0-2h1.07A7 7 0 0 1 11 3.07V2a1 1 0 0 1 2 0v1.07A7 7 0 0 1 18.93 9H20a1 1 0 0 1 0 2h-1.07A7 7 0 0 1 13 16.93z"/></svg>
               </div>
               <div class="card-content">
-                <div class="card-title">Identity & Architecture</div>
-                <div class="card-desc">Explain Kiara's transformer specifications.</div>
-              </div>
-            </button>
-
-            <button class="starter-card" data-prompt="Explain how self-attention works in transformers.">
-              <div class="card-icon math-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-              </div>
-              <div class="card-content">
-                <div class="card-title">Transformer Theory</div>
-                <div class="card-desc">Step-by-step intuition behind self-attention.</div>
-              </div>
-            </button>
-
-            <button class="starter-card" data-prompt="Give three tips for staying healthy.">
-              <div class="card-icon general-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              </div>
-              <div class="card-content">
-                <div class="card-title">Knowledge Synthesis</div>
-                <div class="card-desc">Clear, structured bullet-point advice.</div>
+                <div class="card-title">Kiara Foundation</div>
+                <div class="card-desc">GQA, RoPE & Byte-BPE specifications.</div>
               </div>
             </button>
           </div>
@@ -148,19 +151,25 @@
             <textarea
               id="promptInput"
               class="prompt-textarea"
-              placeholder="Ask Kiara anything... (Shift + Enter for new line)"
+              placeholder="Ask Kiara anything or paste a URL... (Shift + Enter for new line)"
               rows="1"
               required
             ></textarea>
 
             <div class="input-toolbar">
               <div class="input-params-pills">
-                <span class="pill-badge" id="tempPill">Temp: 0.7</span>
-                <span class="pill-badge" id="tokensPill">Max: 100</span>
-                <span class="pill-badge active" id="instructPill">Instruct Mode</span>
+                <button type="button" class="tool-pill" id="webSearchToggle" title="Toggle Real-Time Web Grounding">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <span>Web Search</span>
+                </button>
+                <span class="pill-badge" id="tempPill">Temp: 0.3</span>
+                <span class="pill-badge" id="tokensPill">Max: 150</span>
               </div>
 
               <div class="input-buttons">
+                <button type="button" class="voice-btn" id="voiceBtn" title="Voice Input (Speech-to-Text)" aria-label="Voice Input">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+                </button>
                 <button type="button" class="stop-btn" id="stopBtn" style="display: none;">
                   <span class="stop-square"></span>
                   <span>Stop</span>
@@ -173,7 +182,7 @@
           </div>
         </form>
         <div class="input-disclaimer">
-          Kiara is an autonomous foundation model. Verification is recommended for mission-critical code.
+          Kiara is an autonomous foundation model. Live web grounding and sandbox verification enabled.
         </div>
       </div>
     </main>

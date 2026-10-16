@@ -63,5 +63,34 @@ with urllib.request.urlopen(req) as res:
     lines = [res.readline().decode("utf-8") for _ in range(5)]
     print(f"Test 5 PASS: /api/chat SSE streaming operational, first lines: {lines[:3]}")
 
+# Test 6: POST /api/execute (Python Code Sandbox Runner)
+exec_req = urllib.request.Request(
+    f"http://127.0.0.1:{PORT}/api/execute",
+    data=json.dumps({"code": "print(2 + 2 * 10)"}).encode("utf-8"),
+    headers={"Content-Type": "application/json"}
+)
+with urllib.request.urlopen(exec_req) as res:
+    assert res.status == 200
+    exec_data = json.loads(res.read().decode("utf-8"))
+    assert exec_data["status"] == "ok"
+    assert "22" in exec_data["output"]
+    print(f"Test 6 PASS: /api/execute Python sandbox executed successfully: {exec_data['output'].strip()}")
+
+# Test 7: POST /api/chat with web_search enabled
+web_chat_req = urllib.request.Request(
+    f"http://127.0.0.1:{PORT}/api/chat",
+    data=json.dumps({"prompt": "Tell me about quantum computing", "max_tokens": 5, "web_search": True, "instruct": True}).encode("utf-8"),
+    headers={"Content-Type": "application/json"}
+)
+with urllib.request.urlopen(web_chat_req) as res:
+    assert res.status == 200
+    assert "text/event-stream" in res.headers.get("Content-Type", "")
+    received_lines = []
+    for _ in range(8):
+        line = res.readline().decode("utf-8")
+        if line.strip():
+            received_lines.append(line.strip())
+    print(f"Test 7 PASS: /api/chat with web_search produced SSE events: {received_lines[:2]}")
+
 server.shutdown()
-print("\nALL 5 WEB TESTS PASSED SUCCESSFULLY!")
+print("\nALL 7 WEB & SUPERPOWER TESTS PASSED SUCCESSFULLY!")

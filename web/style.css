@@ -1245,3 +1245,153 @@ input:checked + .slider::before {
     padding: 0 0.75rem 1rem;
   }
 }
+
+/* ==========================================================================
+   Kiara Superpowers & Tool Enhancements (Web Search, Voice, Code Sandbox)
+   ========================================================================== */
+
+/* Web Search Toggle Pill */
+.tool-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-medium);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--trans-fast);
+}
+
+.tool-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tool-pill.active {
+  color: #38bdf8;
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.45);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+}
+
+/* Voice Dictation Button */
+.voice-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--trans-fast);
+}
+
+.voice-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.voice-btn.recording {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #f87171;
+  animation: pulseRecording 1.2s infinite;
+}
+
+@keyframes pulseRecording {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* Topbar TTS Toggle Button */
+.icon-btn.tts-active {
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.35);
+}
+
+/* Live Web Search Status Badge */
+.status-stream-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  color: #38bdf8;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.status-stream-badge .status-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(56, 189, 248, 0.2);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Python Code Sandbox Runner */
+.run-code-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: all var(--trans-fast);
+}
+
+.run-code-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.code-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.code-execution-output {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #020305;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #a7f3d0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.code-execution-output.error {
+  color: #fca5a5;
+  background: #120305;
+}
+
