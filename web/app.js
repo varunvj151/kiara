@@ -614,11 +614,19 @@
       state.modelStatus = data;
 
       // Update UI elements
-      el.statusText.textContent = 'Model Online';
-      el.statusText.style.color = 'var(--status-online)';
-      el.modelParamText.textContent = `${(data.parameters / 1e6).toFixed(1)}M Params`;
-      el.modelDeviceText.textContent = data.device.toUpperCase();
-      el.activeLabel.textContent = data.checkpoint || 'Kiara';
+      if (el.statusText) {
+        el.statusText.textContent = 'Model Online';
+        el.statusText.style.color = 'var(--status-online)';
+      }
+      if (el.modelParamText) {
+        el.modelParamText.textContent = `${(data.parameters / 1e6).toFixed(1)}M Params`;
+      }
+      if (el.modelDeviceText) {
+        el.modelDeviceText.textContent = data.device.toUpperCase();
+      }
+      if (el.activeLabel) {
+        el.activeLabel.textContent = data.checkpoint || 'Kiara';
+      }
 
       // Populate Checkpoints
       el.checkpointSelect.innerHTML = '';
@@ -687,11 +695,15 @@
       el.repVal.textContent = state.settings.repetitionPenalty;
     }
 
-    el.instructToggle.checked = state.settings.instruct;
-    if (state.settings.instruct) {
-      el.instructPill.classList.add('active');
-    } else {
-      el.instructPill.classList.remove('active');
+    if (el.instructToggle) {
+      el.instructToggle.checked = state.settings.instruct;
+    }
+    if (el.instructPill) {
+      if (state.settings.instruct) {
+        el.instructPill.classList.add('active');
+      } else {
+        el.instructPill.classList.remove('active');
+      }
     }
 
     if (el.webSearchToggle) {
@@ -867,15 +879,19 @@
       });
     }
 
-    el.instructToggle.addEventListener('change', (e) => {
-      state.settings.instruct = e.target.checked;
-      if (state.settings.instruct) {
-        el.instructPill.classList.add('active');
-      } else {
-        el.instructPill.classList.remove('active');
-      }
-      persistState();
-    });
+    if (el.instructToggle) {
+      el.instructToggle.addEventListener('change', (e) => {
+        state.settings.instruct = e.target.checked;
+        if (el.instructPill) {
+          if (state.settings.instruct) {
+            el.instructPill.classList.add('active');
+          } else {
+            el.instructPill.classList.remove('active');
+          }
+        }
+        persistState();
+      });
+    }
 
     // Checkpoint Switcher
     el.checkpointSelect.addEventListener('change', handleSwitchCheckpoint);
@@ -936,13 +952,19 @@
 
   // --- Application Bootstrapping ---
   function init() {
-    loadSavedState();
-    syncSettingsUI();
-    renderSidebarHistory();
-    renderCurrentConversation();
-    setupEventListeners();
-    setupSpeechRecognition();
-    fetchServerStatus();
+    try {
+      loadSavedState();
+      syncSettingsUI();
+      renderSidebarHistory();
+      renderCurrentConversation();
+      setupEventListeners();
+      setupSpeechRecognition();
+      fetchServerStatus();
+      // Periodically refresh server status
+      setInterval(fetchServerStatus, 5000);
+    } catch (err) {
+      console.error('Fatal initialization error in Kiara UI:', err);
+    }
   }
 
   // Launch on DOM ready
