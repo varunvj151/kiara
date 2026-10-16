@@ -276,6 +276,7 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                 data = {}
 
             prompt = data.get("prompt", "").strip()
+            messages = data.get("messages", [])
             max_new_tokens = int(data.get("max_tokens", 100))
             temperature = float(data.get("temperature", 0.7))
             top_k = int(data.get("top_k", 40))
@@ -295,40 +296,44 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             is_chatml = CURRENT_TOKENIZER.token_to_id("<|im_start|>") is not None
 
             if is_chatml:
+                turns = ["<|im_start|>system\nYou are Kiara, an intelligent and helpful AI reasoning assistant.<|im_end|>\n"]
+
+                # Multi-turn chat history continuity
+                if messages and isinstance(messages, list):
+                    for m in messages[-6:]:
+                        role = m.get("role", "user")
+                        content = m.get("content", "").strip()
+                        if content and role in ("user", "assistant"):
+                            turns.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+
+                # Grounded current user prompt
                 if web_context:
-                    formatted_prompt = (
-                        f"<|im_start|>system\n"
-                        f"You are Kiara, an intelligent and helpful AI assistant. Use the following real-time web research context to answer the user's question accurately:\n"
-                        f"{web_context}\n"
-                        f"<|im_end|>\n"
-                        f"<|im_start|>user\n"
-                        f"{prompt}\n"
-                        f"<|im_end|>\n"
-                        f"<|im_start|>assistant\n"
-                    )
-                elif instruct:
-                    formatted_prompt = (
-                        f"<|im_start|>system\n"
-                        f"You are Kiara, a helpful and precise reasoning assistant.\n"
-                        f"<|im_end|>\n"
-                        f"<|im_start|>user\n"
-                        f"{prompt}\n"
-                        f"<|im_end|>\n"
-                        f"<|im_start|>assistant\n"
+                    current_content = (
+                        f"Web Search Results:\n{web_context}\n\n"
+                        f"Question: {prompt}\n"
+                        f"Answer directly based on the search results above:"
                     )
                 else:
-                    formatted_prompt = prompt
+                    current_content = prompt
+
+                turns.append(f"<|im_start|>user\n{current_content}<|im_end|>\n<|im_start|>assistant\n")
+                formatted_prompt = "".join(turns)
             else:
                 # Classic Alpaca template for legacy checkpoints
+                history_str = ""
+                if messages and isinstance(messages, list):
+                    for m in messages[-6:]:
+                        role_tag = "Instruction" if m.get("role") == "user" else "Response"
+                        content = m.get("content", "").strip()
+                        if content:
+                            history_str += f"### {role_tag}:\n{content}\n\n"
+
                 if web_context:
-                    if instruct:
-                        formatted_prompt = f"### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
-                    else:
-                        formatted_prompt = f"Context: {web_context}\n\n{prompt}"
+                    formatted_prompt = f"{history_str}### Web Research Context:\n{web_context}\n\n### Instruction:\n{prompt}\n\n### Response:\n"
                 elif instruct:
-                    formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+                    formatted_prompt = f"{history_str}### Instruction:\n{prompt}\n\n### Response:\n"
                 else:
-                    formatted_prompt = prompt
+                    formatted_prompt = f"{history_str}{prompt}"
 
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/event-stream")
@@ -353,12 +358,12 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
             max_pos = getattr(CURRENT_CONFIG, "max_position_embeddings", 2048)
             max_allowed = max_pos - max_new_tokens - 4
             if max_allowed > 16 and len(input_ids) > max_allowed:
-                input_ids = input_ids[:max_allowed]
+                input_ids = input_ids[-max_allowed:]
 
             generated = torch.tensor([input_ids], dtype=torch.long, device=DEVICE)
             past_key_values = None
             eos_ids = {CURRENT_TOKENIZER.eos_token_id}
-            for special in ["<|im_end|>", "<|endoftext|>", "[EOS]"]:
+            for special in ["<|im_end|>", "<|endoftext|>", "[EOS]", "<repo_name>", "<file_sep>", "<filename>"]:
                 tid = CURRENT_TOKENIZER.token_to_id(special)
                 if tid is not None:
                     eos_ids.add(tid)
@@ -409,9 +414,9 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                     full_text = CURRENT_TOKENIZER.decode(all_gen_ids, skip_special_tokens=False)
 
                     # Stop conditions
-                    if tok_id in eos_ids or "<|im_end|>" in full_text or "<|endoftext|>" in full_text or "[EOS]" in full_text:
+                    if tok_id in eos_ids or "<|im_end|>" in full_text or "<|endoftext|>" in full_text or "[EOS]" in full_text or "<repo_name>" in full_text:
                         break
-                    if "###" in full_text or "<|im_start|>" in full_text:
+                    if "###" in full_text or "<|im_start|>" in full_text or "<file_sep>" in full_text:
                         break
 
                     delta = full_text[len(prev_text):]
@@ -419,7 +424,7 @@ class KiaraHTTPHandler(SimpleHTTPRequestHandler):
                         continue
 
                     # Filter out any internal special token strings
-                    clean_delta = delta.replace("<|im_end|>", "").replace("<|im_start|>", "").replace("<|endoftext|>", "")
+                    clean_delta = delta.replace("<|im_end|>", "").replace("<|im_start|>", "").replace("<|endoftext|>", "").replace("<repo_name>", "").replace("<file_sep>", "")
                     if not clean_delta:
                         continue
 

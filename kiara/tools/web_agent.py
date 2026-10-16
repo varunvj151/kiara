@@ -80,6 +80,8 @@ def search_duckduckgo(query: str, max_results: int = 4, timeout: int = 6) -> lis
         for raw_url, snippet_html in matches[:max_results]:
             clean_s = re.sub(r'<[^>]+>', '', snippet_html).strip()
             clean_s = re.sub(r'\s+', ' ', clean_s)
+            clean_s = urllib.parse.unquote(clean_s)
+            clean_s = clean_s.replace("&#x27;", "'").replace("&quot;", '"').replace("&amp;", "&")
             if clean_s:
                 results.append({
                     "snippet": clean_s,
@@ -105,6 +107,7 @@ def search_wikipedia(query: str, max_results: int = 2, timeout: int = 5) -> list
         for item in search_items[:max_results]:
             snippet_clean = re.sub(r'<[^>]+>', '', item.get("snippet", ""))
             snippet_clean = re.sub(r'\s+', ' ', snippet_clean).strip()
+            snippet_clean = snippet_clean.replace("&#x27;", "'").replace("&quot;", '"').replace("&amp;", "&")
             results.append({
                 "title": item.get("title", ""),
                 "snippet": snippet_clean,
@@ -132,28 +135,40 @@ def get_web_grounding_context(prompt: str, enable_search: bool = False) -> tuple
     if enable_search:
         # Strip common prompt filler to form clean search query
         clean_query = prompt.strip()
-        for prefix in ["who is", "what is", "tell me about", "explain", "search for", "search", "show me", "can you tell me"]:
+        for prefix in ["who is the", "who is", "what is the", "what is", "tell me about", "explain", "search for", "search", "show me", "can you tell me"]:
             if clean_query.lower().startswith(prefix):
                 clean_query = clean_query[len(prefix):].strip()
                 break
+
+        # Strip remaining leading 'the ' or punctuation
+        if clean_query.lower().startswith("the "):
+            clean_query = clean_query[4:].strip()
         clean_query = clean_query.rstrip("?.!")
+
+        # Skip web search if query is purely numeric or simple math (e.g., '1+1', '4 * 5')
+        test_math = re.sub(r'[\s\+\-\*\/\^\(\)\.\=\%]', '', clean_query)
+        if not test_math or test_math.isdigit():
+            return None, None
 
         status = f"Searching live web for '{clean_query[:35]}...'"
 
         # First priority: Live Web Search via DuckDuckGo
         ddg_results = search_duckduckgo(clean_query, max_results=3)
+        wiki_results = search_wikipedia(clean_query, max_results=2)
+
+        context_lines = []
         if ddg_results:
-            context_lines = ["Live Web Search Results:"]
+            context_lines.append("Live Web Search Results:")
             for r in ddg_results:
                 context_lines.append(f"- {r['snippet']} (Source: {r['url']})")
-            return "\n".join(context_lines) + "\n", status
 
-        # Fallback: Wikipedia Encyclopedia API
-        wiki_results = search_wikipedia(clean_query, max_results=2)
         if wiki_results:
-            context_lines = ["Live Knowledge Base:"]
+            context_lines.append("Encyclopedia Summary:")
             for r in wiki_results:
                 context_lines.append(f"- {r['title']}: {r['snippet']}")
+
+        if context_lines:
             return "\n".join(context_lines) + "\n", status
 
     return None, None
+

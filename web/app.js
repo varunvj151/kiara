@@ -470,11 +470,17 @@
     state.abortController = new AbortController();
 
     try {
+      const historyMessages = session.messages.slice(0, -1).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: rawPrompt,
+          messages: historyMessages,
           max_tokens: state.settings.maxTokens,
           temperature: state.settings.temperature,
           top_k: state.settings.topK,
@@ -525,6 +531,11 @@
             if (data.token) {
               assistantMsg.content += data.token;
               const statusEl = bubbleEl.querySelector('.status-stream-badge');
+              if (statusEl && statusEl.querySelector('.status-spinner')) {
+                const textSpan = statusEl.querySelector('span:not(.status-spinner)');
+                const cleanTxt = textSpan ? textSpan.textContent.replace('Searching live web for ', 'Searched ').replace('...', '') : 'Web Grounded';
+                statusEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span>${escapeHtml(cleanTxt)}</span>`;
+              }
               const statusPrefix = statusEl ? statusEl.outerHTML : '';
               bubbleEl.innerHTML = statusPrefix + renderMarkdown(assistantMsg.content) + '<span class="cursor-blink"></span>';
               scrollToBottom();
@@ -545,6 +556,11 @@
 
       // Finalize message rendering without cursor
       const statusEl = bubbleEl.querySelector('.status-stream-badge');
+      if (statusEl && statusEl.querySelector('.status-spinner')) {
+        const textSpan = statusEl.querySelector('span:not(.status-spinner)');
+        const cleanTxt = textSpan ? textSpan.textContent.replace('Searching live web for ', 'Searched ').replace('...', '') : 'Web Grounded';
+        statusEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span>${escapeHtml(cleanTxt)}</span>`;
+      }
       const statusPrefix = statusEl ? statusEl.outerHTML : '';
       bubbleEl.innerHTML = statusPrefix + renderMarkdown(assistantMsg.content);
 
