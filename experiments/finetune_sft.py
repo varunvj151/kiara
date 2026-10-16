@@ -38,24 +38,35 @@ PROMPT_TEMPLATE = "### Instruction:\n{instruction}\n\n### Response:\n"
 
 
 class SFTDataset(Dataset):
-    """Dataset with Response-Only Loss Masking."""
+    """Dataset with Response-Only Loss Masking and adaptive ChatML/Alpaca support."""
 
     def __init__(self, data_path: Path, tokenizer: KiaraTokenizer, seq_len: int = 256):
         self.samples = []
         self.seq_len = seq_len
         pad_id = tokenizer.pad_token_id
-        eos_id = tokenizer.eos_token_id
+        is_chatml = tokenizer.token_to_id("<|im_start|>") is not None
+        im_end_id = tokenizer.token_to_id("<|im_end|>")
+        eos_id = im_end_id if (is_chatml and im_end_id is not None) else tokenizer.eos_token_id
 
         with open(data_path, "r", encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue
                 item = json.loads(line)
-                prompt_str = PROMPT_TEMPLATE.format(instruction=item["instruction"].strip())
-                resp_str = item["response"].strip()
+                inst_text = item["instruction"].strip()
+                resp_text = item["response"].strip()
 
-                prompt_ids = tokenizer.encode(prompt_str, bos=False, eos=False)
-                resp_ids = tokenizer.encode(resp_str, bos=False, eos=False) + [eos_id]
+                if is_chatml:
+                    prompt_str = f"<|im_start|>user\n{inst_text}<|im_end|>\n<|im_start|>assistant\n"
+                    resp_str = f"{resp_text}<|im_end|>\n"
+                else:
+                    prompt_str = PROMPT_TEMPLATE.format(instruction=inst_text)
+                    resp_str = resp_text
+
+                prompt_ids = tokenizer.encode(prompt_str, bos=not is_chatml, eos=False)
+                resp_ids = tokenizer.encode(resp_str, bos=False, eos=not is_chatml)
+                if not is_chatml:
+                    resp_ids = resp_ids + [eos_id]
 
                 input_ids = prompt_ids + resp_ids
                 # Mask prompt tokens with -100 so loss is only calculated on assistant answer
@@ -118,21 +129,34 @@ def evaluate_sft_loss(model, dataloader, device, max_batches: int = 30):
 @torch.no_grad()
 def sample_test_prompt(model, tokenizer, device, prompt: str = "Who are you?"):
     model.eval()
-    full_prompt = PROMPT_TEMPLATE.format(instruction=prompt)
-    input_ids = tokenizer.encode(full_prompt, bos=True)
+    is_chatml = tokenizer.token_to_id("<|im_start|>") is not None
+    if is_chatml:
+        full_prompt = f"<|im_start|>system\nYou are Kiara, a helpful AI assistant.<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    else:
+        full_prompt = PROMPT_TEMPLATE.format(instruction=prompt)
+    input_ids = tokenizer.encode(full_prompt, bos=not is_chatml)
     t_ids = torch.tensor([input_ids], dtype=torch.long, device=device)
+
+    stop_ids = {tokenizer.eos_token_id, 2, 3}
+    for tok_name in ["<|im_end|>", "<|endoftext|>", "<repo_name>", "<file_sep>"]:
+        tid = tokenizer.token_to_id(tok_name)
+        if tid is not None:
+            stop_ids.add(tid)
 
     out = model.generate(
         input_ids=t_ids,
         max_new_tokens=60,
         temperature=0.3,
         top_k=20,
-        eos_token_id=tokenizer.eos_token_id,
+        eos_token_id=list(stop_ids),
         use_cache=True,
     )
-    decoded = tokenizer.decode(out[0].tolist(), skip_special_tokens=True)
-    continuation = decoded[len(full_prompt):].strip()
-    return continuation
+    gen_ids = out[0, len(input_ids):].tolist()
+    text = tokenizer.decode(gen_ids, skip_special_tokens=False)
+    for stop_str in ["<|im_end|>", "<|im_start|>", "<repo_name>", "<file_sep>", "<|endoftext|>", "###"]:
+        if stop_str in text:
+            text = text.split(stop_str)[0]
+    return text.strip()
 
 
 def run_instruction_finetuning(
@@ -325,6 +349,10 @@ if __name__ == "__main__":
     candidate_paths = [
         raw_req,
         REPO_ROOT / raw_req,
+        REPO_ROOT / "checkpoints" / "kiara_135m_instruct" / "checkpoint_final.pt",
+        REPO_ROOT / "checkpoints" / "kiara_135m" / "checkpoint_final.pt",
+        Path("/content/drive/MyDrive/kiara_checkpoints/kiara_135m_instruct/checkpoint_final.pt"),
+        Path("/content/kiara/checkpoints/kiara_135m_instruct/checkpoint_final.pt"),
         Path("/content/drive/MyDrive/kiara_checkpoints") / raw_req.name,
         Path("/content/drive/MyDrive/kiara_checkpoints") / raw_req.parent.name / raw_req.name,
         Path("/content/drive/MyDrive/kiara_checkpoints/stage_26D1/checkpoint_final.pt"),

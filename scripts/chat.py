@@ -28,7 +28,14 @@ from kiara.model import KiaraConfig, KiaraForCausalLM
 from kiara.tokenizer import KiaraTokenizer
 from kiara.trainer import load_checkpoint
 
-DEFAULT_CKPT = REPO_ROOT / "checkpoints" / "stage_26C" / "checkpoint_final.pt"
+_PREFERRED_135M = REPO_ROOT / "checkpoints" / "kiara_135m_instruct" / "checkpoint_final.pt"
+_PREFERRED_INSTRUCT = REPO_ROOT / "checkpoints" / "kiara_instruct" / "checkpoint_final1.pt"
+if _PREFERRED_135M.exists():
+    DEFAULT_CKPT = _PREFERRED_135M
+elif _PREFERRED_INSTRUCT.exists():
+    DEFAULT_CKPT = _PREFERRED_INSTRUCT
+else:
+    DEFAULT_CKPT = REPO_ROOT / "checkpoints" / "stage_26C" / "checkpoint_final.pt"
 
 TINY_CONFIG = dict(
     vocab_size=32768,
@@ -104,13 +111,26 @@ def generate_text(
     instruct: bool = False,
     device: torch.device = torch.device("cpu"),
 ) -> tuple[str, int, float]:
+    is_chatml = tokenizer.token_to_id("<|im_start|>") is not None
     if instruct:
-        formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+        if is_chatml:
+            formatted_prompt = (
+                f"<|im_start|>system\nYou are Kiara, a helpful AI assistant.<|im_end|>\n"
+                f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            )
+        else:
+            formatted_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
     else:
         formatted_prompt = prompt
 
-    input_ids = tokenizer.encode(formatted_prompt, bos=True)
+    input_ids = tokenizer.encode(formatted_prompt, bos=not is_chatml)
     t_ids = torch.tensor([input_ids], dtype=torch.long, device=device)
+
+    stop_ids = {tokenizer.eos_token_id, 2, 3}
+    for tok_name in ["<|im_end|>", "<|endoftext|>", "<repo_name>", "<file_sep>"]:
+        tid = tokenizer.token_to_id(tok_name)
+        if tid is not None:
+            stop_ids.add(tid)
 
     t0 = time.time()
     out = model.generate(
@@ -120,24 +140,24 @@ def generate_text(
         top_k=top_k,
         top_p=top_p,
         repetition_penalty=repetition_penalty,
-        eos_token_id=tokenizer.eos_token_id,
+        eos_token_id=list(stop_ids),
         use_cache=True,
     )
     elapsed = time.time() - t0
 
     generated_ids = out[0].tolist()
-    full_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
     tokens_gen = len(generated_ids) - len(input_ids)
     tok_per_sec = tokens_gen / max(0.001, elapsed)
 
-    if instruct and formatted_prompt in full_text:
-        continuation = full_text[len(formatted_prompt):].strip()
-        # Clean trailing instruction tag if any
-        if "###" in continuation:
-            continuation = continuation.split("###")[0].strip()
-        return continuation, tokens_gen, tok_per_sec
+    continuation_ids = generated_ids[len(input_ids):]
+    continuation = tokenizer.decode(continuation_ids, skip_special_tokens=False).strip()
 
-    return full_text, tokens_gen, tok_per_sec
+    # Clean trailing stop markers
+    for stop_str in ["<|im_end|>", "<|im_start|>", "<repo_name>", "<file_sep>", "<|endoftext|>", "###"]:
+        if stop_str in continuation:
+            continuation = continuation.split(stop_str)[0].strip()
+
+    return continuation, tokens_gen, tok_per_sec
 
 
 def main():

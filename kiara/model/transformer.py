@@ -220,12 +220,18 @@ class KiaraForCausalLM(nn.Module):
         top_k: int | None = None,
         top_p: float | None = None,
         repetition_penalty: float = 1.0,
-        eos_token_id: int | None = None,
+        eos_token_id: int | list[int] | set[int] | None = None,
         use_cache: bool = True,
     ) -> torch.Tensor:
         """Autoregressively generate tokens from prompt input_ids."""
         self.eval()
-        eos_token_id = eos_token_id if eos_token_id is not None else self.config.eos_token_id
+        if eos_token_id is not None:
+            if isinstance(eos_token_id, (list, tuple, set)):
+                stop_ids = {int(x) for x in eos_token_id if x is not None}
+            else:
+                stop_ids = {int(eos_token_id)}
+        else:
+            stop_ids = {int(self.config.eos_token_id)} if self.config.eos_token_id is not None else set()
         generated = input_ids.clone()
         past_key_values = None
         prompt_len = input_ids.shape[-1]
@@ -287,7 +293,7 @@ class KiaraForCausalLM(nn.Module):
 
             generated = torch.cat((generated, next_token), dim=-1)
 
-            if eos_token_id is not None and (next_token == eos_token_id).all():
+            if stop_ids and any(tok.item() in stop_ids for tok in next_token.flatten()):
                 break
 
         return generated

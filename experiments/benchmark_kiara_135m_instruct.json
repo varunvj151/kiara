@@ -1,0 +1,367 @@
+{
+  "checkpoint": "checkpoints\\kiara_135m_instruct\\checkpoint_final.pt",
+  "timestamp": "2026-10-16 11:14:05",
+  "elapsed_seconds": 240.83,
+  "pillars": {
+    "arithmetic_raw": {
+      "accuracy": 30.0,
+      "passed": 3,
+      "total": 10,
+      "details": [
+        {
+          "id": "math_01",
+          "prompt": "What is 1 + 1?",
+          "expected": "2",
+          "response": "The answer is 2.",
+          "pass": true,
+          "elapsed": 5.22
+        },
+        {
+          "id": "math_02",
+          "prompt": "What is 25 * 4?",
+          "expected": "100",
+          "response": "Let's solve this step by step:\n\nGiven that 25 * 4 = 100, we can rewrite the equation as:\n\n25 * 4 = 100\n\nTo find the valu",
+          "pass": true,
+          "elapsed": 4.93
+        },
+        {
+          "id": "math_03",
+          "prompt": "Calculate 50 + 28.",
+          "expected": "78",
+          "response": "To calculate 50 + 28, we need to add 10 to both numbers and then subtract 10.\n\nFirst, let's add 10 to both numbers:\n50 +",
+          "pass": false,
+          "elapsed": 5.03
+        },
+        {
+          "id": "math_04",
+          "prompt": "What is 144 / 12?",
+          "expected": "12",
+          "response": "To find the value of 144 / 12, we can use the division operation (\u221a) to find the prime factorization of 144.\n\nThe prime ",
+          "pass": true,
+          "elapsed": 5.04
+        },
+        {
+          "id": "math_05",
+          "prompt": "Solve for x: 3x + 15 = 45. What is the value of x?",
+          "expected": "10",
+          "response": "To solve for x, we need to isolate x on one side of the equation. Let's do it step by step:\n\nGiven the equation 3x + 15 ",
+          "pass": false,
+          "elapsed": 4.97
+        },
+        {
+          "id": "math_06",
+          "prompt": "A store sells apples for 2 dollars each and oranges for 3 dollars each. If Sarah buys 4 apples and 5 oranges, how much does she spend in total?",
+          "expected": "23",
+          "response": "Let's break down the information given:\n1. Sarah buys 4 apples and 5 oranges.\n2. The total cost of the apples and orange",
+          "pass": false,
+          "elapsed": 5.19
+        },
+        {
+          "id": "math_07",
+          "prompt": "A shirt costs $80 and is discounted by 25%. What is the final price?",
+          "expected": "60",
+          "response": "Let's break down the problem step-by-step:\n\n1. We know that the discount is 25%.\n2. To find the final price, we need to ",
+          "pass": false,
+          "elapsed": 5.16
+        },
+        {
+          "id": "math_08",
+          "prompt": "What is the area of a rectangle with length 8 and width 5?",
+          "expected": "40",
+          "response": "The area of a rectangle can be calculated using the formula:\n\nArea = Length \u00d7 Width\n\nGiven the length (L) and width (W) ",
+          "pass": false,
+          "elapsed": 4.87
+        },
+        {
+          "id": "math_09",
+          "prompt": "What is 2 raised to the power of 8 (2^8)?",
+          "expected": "256",
+          "response": "To solve this problem, we can use the exponentiation property of 2 raised to the power of 8. \n\nThe formula for exponenti",
+          "pass": false,
+          "elapsed": 5.25
+        },
+        {
+          "id": "math_10",
+          "prompt": "Evaluate: (15 + 5) * (10 - 2).",
+          "expected": "160",
+          "response": "Evaluate:\n\n(15 + 5) * (10 - 2) = 15 * 10 - 20\n\n= 150 - 20\n\n= 100\n\n= 10\n\n=",
+          "pass": false,
+          "elapsed": 5.01
+        }
+      ]
+    },
+    "arithmetic_with_tools": {
+      "accuracy": 40.0,
+      "passed": 4,
+      "total": 10,
+      "details": [
+        {
+          "id": "math_01",
+          "prompt": "What is 1 + 1?",
+          "expected": "2",
+          "response": "The answer is 2.",
+          "pass": true,
+          "elapsed": 5.18
+        },
+        {
+          "id": "math_02",
+          "prompt": "What is 25 * 4?",
+          "expected": "100",
+          "response": "To calculate 25 * 4, we need to multiply 4 by 2. \n\nSo, 25 * 4 = 100 * 4 = 400\n\nNow, to find the value of 25, we subtract",
+          "pass": true,
+          "elapsed": 5.43
+        },
+        {
+          "id": "math_03",
+          "prompt": "Calculate 50 + 28.",
+          "expected": "78",
+          "response": "To calculate 50 + 28, we need to perform the operations inside the calculator and then add the results together. \n\nFirst",
+          "pass": false,
+          "elapsed": 5.55
+        },
+        {
+          "id": "math_04",
+          "prompt": "What is 144 / 12?",
+          "expected": "12",
+          "response": "To find the value of 144 / 12, we can use the division operation (div) and the fraction (/). \n\nFirst, we need to find th",
+          "pass": true,
+          "elapsed": 4.91
+        },
+        {
+          "id": "math_05",
+          "prompt": "Solve for x: 3x + 15 = 45. What is the value of x?",
+          "expected": "10",
+          "response": "To solve for x, we need to isolate x on one side of the equation. Let's do it step by step:\n\nGiven the equation 3x + 15 ",
+          "pass": false,
+          "elapsed": 4.91
+        },
+        {
+          "id": "math_06",
+          "prompt": "A store sells apples for 2 dollars each and oranges for 3 dollars each. If Sarah buys 4 apples and 5 oranges, how much does she spend in total?",
+          "expected": "23",
+          "response": "First, let's calculate the total cost of the apples and oranges:\n\nApple Cost = 2 dollars per apple\nOrange Cost = 3 dolla",
+          "pass": false,
+          "elapsed": 5.05
+        },
+        {
+          "id": "math_07",
+          "prompt": "A shirt costs $80 and is discounted by 25%. What is the final price?",
+          "expected": "60",
+          "response": "Let's break down the problem step-by-step:\n\n1. We know that the discount is 25%.\n2. To find the final price, we need to ",
+          "pass": false,
+          "elapsed": 5.22
+        },
+        {
+          "id": "math_08",
+          "prompt": "What is the area of a rectangle with length 8 and width 5?",
+          "expected": "40",
+          "response": "The area of a rectangle can be calculated using the formula:\n\nArea = Length * Width\n\nGiven the length of the rectangle (",
+          "pass": true,
+          "elapsed": 4.81
+        },
+        {
+          "id": "math_09",
+          "prompt": "What is 2 raised to the power of 8 (2^8)?",
+          "expected": "256",
+          "response": "The tool results show that 2 raised to the power of 8 is 8^8.",
+          "pass": false,
+          "elapsed": 5.0
+        },
+        {
+          "id": "math_10",
+          "prompt": "Evaluate: (15 + 5) * (10 - 2).",
+          "expected": "160",
+          "response": "The tool results show that the expression evaluates to 15 + 5 * 10 - 2.",
+          "pass": false,
+          "elapsed": 4.96
+        }
+      ]
+    },
+    "coding": {
+      "accuracy": 100.0,
+      "passed": 5,
+      "total": 5,
+      "details": [
+        {
+          "id": "code_01",
+          "func": "is_prime",
+          "pass": true,
+          "error": "",
+          "response_snippet": "To determine if a given number is prime, we can use the primality test. The primality test states th",
+          "elapsed": 12.05
+        },
+        {
+          "id": "code_02",
+          "func": "factorial",
+          "pass": true,
+          "error": "",
+          "response_snippet": "def factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)\n\nfacto",
+          "elapsed": 12.84
+        },
+        {
+          "id": "code_03",
+          "func": "is_palindrome",
+          "pass": true,
+          "error": "",
+          "response_snippet": "def is_palindrome(s):\n    s = s.lower()\n    s = ''.join(c for c in s if c.isalnum())\n    return s ==",
+          "elapsed": 12.38
+        },
+        {
+          "id": "code_04",
+          "func": "reverse_string",
+          "pass": true,
+          "error": "",
+          "response_snippet": "def reverse_string(s):\n    return s[::-1]\n\nreverse_string(\"hello world\") # returns \"olleh worlld\"\nre",
+          "elapsed": 12.75
+        },
+        {
+          "id": "code_05",
+          "func": "find_max",
+          "pass": true,
+          "error": "",
+          "response_snippet": "def find_max(lst):\n    max_num = lst[0]\n    for num in lst:\n        if num > max_num:\n            ma",
+          "elapsed": 12.4
+        }
+      ]
+    },
+    "concepts": {
+      "accuracy": 80.0,
+      "passed": 4,
+      "total": 5,
+      "details": [
+        {
+          "id": "concept_01",
+          "prompt": "What is quantum computing?",
+          "pass": true,
+          "response_snippet": "Quantum computing is a type of computing that uses the principles of quantum mechanics to perform calculations. It is ba",
+          "elapsed": 9.68
+        },
+        {
+          "id": "concept_02",
+          "prompt": "Explain the self-attention mechanism in Transformers.",
+          "pass": true,
+          "response_snippet": "The self-attention mechanism in Transformers is a crucial component of many modern neural networks that allows them to a",
+          "elapsed": 9.77
+        },
+        {
+          "id": "concept_03",
+          "prompt": "What is the difference between supervised and unsupervised learning?",
+          "pass": true,
+          "response_snippet": "Supervised learning is when the model is trained on labeled data, while unsupervised learning is when the model is train",
+          "elapsed": 9.55
+        },
+        {
+          "id": "concept_04",
+          "prompt": "What is Grouped Query Attention (GQA) and how does it compare to Multi-Head Attention?",
+          "pass": true,
+          "response_snippet": "Grouped Query Attention (GQA) and Multi-Head Attention are two types of attention mechanisms used in deep learning model",
+          "elapsed": 9.9
+        },
+        {
+          "id": "concept_05",
+          "prompt": "What is overfitting in machine learning and how is it prevented?",
+          "pass": false,
+          "response_snippet": "Overfitting is a phenomenon where a machine learning model becomes too complex and performs better on training data than",
+          "elapsed": 10.76
+        }
+      ]
+    },
+    "instructions": {
+      "accuracy": 20.0,
+      "passed": 1,
+      "total": 5,
+      "details": [
+        {
+          "id": "inst_01",
+          "desc": "Single-word Yes/No constraint",
+          "pass": false,
+          "response": "The earth is round.",
+          "elapsed": 5.74
+        },
+        {
+          "id": "inst_02",
+          "desc": "3-item numbered list constraint",
+          "pass": false,
+          "response": "Here's a numbered list of colors of the rainbow:\n\n- Red\n- Orange\n- Yellow\n- Gree",
+          "elapsed": 5.15
+        },
+        {
+          "id": "inst_03",
+          "desc": "Valid JSON output constraint",
+          "pass": false,
+          "response": "Here is a possible JSON object:\n\n{\n  \"language\": \"Python\",\n  \"version\": \"3\"\n}\n\nT",
+          "elapsed": 5.15
+        },
+        {
+          "id": "inst_04",
+          "desc": "Single-word Spanish translation",
+          "pass": false,
+          "response": "\u00bfPuede tener una cara de apple?\n\n\u00bfPuede tener una cara de apple?\n\n\u00bfPuede tener u",
+          "elapsed": 5.41
+        },
+        {
+          "id": "inst_05",
+          "desc": "Model self-identity check",
+          "pass": true,
+          "response": "I am Kiara, a trustworthy and responsible AI assistant designed to assist humans",
+          "elapsed": 5.39
+        }
+      ]
+    },
+    "tool_selection": {
+      "accuracy": 100.0,
+      "passed": 8,
+      "total": 8,
+      "details": [
+        {
+          "prompt": "1 + 1",
+          "expected": "calculator",
+          "actual": "calculator",
+          "pass": true
+        },
+        {
+          "prompt": "Calculate (45 * 12) + 8.",
+          "expected": "calculator",
+          "actual": "calculator",
+          "pass": true
+        },
+        {
+          "prompt": "What is the latest stable PyTorch release?",
+          "expected": "web_search",
+          "actual": "web_search",
+          "pass": true
+        },
+        {
+          "prompt": "who is the cm of tamilnadu",
+          "expected": "web_search",
+          "actual": "web_search",
+          "pass": true
+        },
+        {
+          "prompt": "Current price of Bitcoin today",
+          "expected": "web_search",
+          "actual": "web_search",
+          "pass": true
+        },
+        {
+          "prompt": "https://example.com/data.html read this",
+          "expected": "open_url",
+          "actual": "open_url",
+          "pass": true
+        },
+        {
+          "prompt": "What is quantum computing?",
+          "expected": "knowledge",
+          "actual": "knowledge",
+          "pass": true
+        },
+        {
+          "prompt": "Explain backpropagation in neural networks",
+          "expected": "knowledge",
+          "actual": "knowledge",
+          "pass": true
+        }
+      ]
+    }
+  }
+}
